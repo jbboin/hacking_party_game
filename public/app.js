@@ -86,11 +86,15 @@ async function uploadPhoto() {
 // Preview selected photo
 function previewPhoto(input) {
   const preview = document.getElementById('photo-preview');
+  const uploadBtn = document.getElementById('upload-photo-btn');
+  const cameraBtn = document.querySelector('.btn-camera');
   if (input.files && input.files[0]) {
     const reader = new FileReader();
     reader.onload = function(e) {
       preview.src = e.target.result;
       preview.classList.remove('hidden');
+      if (uploadBtn) uploadBtn.classList.remove('hidden');
+      if (cameraBtn) cameraBtn.classList.add('hidden');
     };
     reader.readAsDataURL(input.files[0]);
   }
@@ -384,8 +388,9 @@ async function fetchPlayerData(playerId) {
               <p>> Pose: <span class="pose-name">${data.mission.pose}</span></p>
               <div class="photo-upload-section">
                 <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+                <label for="photo-input" class="btn-camera">OPEN CAMERA</label>
                 <img id="photo-preview" class="photo-preview hidden" alt="Preview">
-                <button id="upload-photo-btn" class="btn-upload" onclick="uploadPhoto()">UPLOAD PHOTO</button>
+                <button id="upload-photo-btn" class="btn-upload hidden" onclick="uploadPhoto()">SEND PHOTO</button>
               </div>
             `;
           }
