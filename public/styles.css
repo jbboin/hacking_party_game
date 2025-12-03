@@ -702,10 +702,12 @@ input[type="text"]::placeholder {
 }
 
 .access-code-label {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
+  font-weight: bold;
   color: var(--green-dim);
   margin-bottom: 0.5rem;
   letter-spacing: 0.1rem;
+  text-align: center;
 }
 
 .tap-hint {
@@ -817,7 +819,8 @@ input[type="text"]::placeholder {
 }
 
 .mission-label {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
+  font-weight: bold;
   color: var(--green);
   margin-bottom: 0.5rem;
   letter-spacing: 0.1rem;
@@ -1226,6 +1229,7 @@ input[type="text"]::placeholder {
 }
 
 .hack-label {
+  font-size: 0.9rem;
   font-weight: bold;
   text-align: center;
   margin-bottom: 0.5rem;
