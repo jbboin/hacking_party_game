@@ -390,8 +390,18 @@ function assignMission(playerId, withCooldown = false) {
       const target = teammates[Math.floor(Math.random() * teammates.length)];
 
       if (missionType === 'photo') {
-        // Photo mission
-        const pose = PHOTO_POSES[Math.floor(Math.random() * PHOTO_POSES.length)];
+        // Photo mission - track used poses to avoid repeats
+        const usedPoses = player.usedPoses || [];
+        let availablePoses = PHOTO_POSES.filter(p => !usedPoses.includes(p));
+
+        // If all poses used, reset and start over
+        if (availablePoses.length === 0) {
+          player.usedPoses = [];
+          saveGuests();
+          availablePoses = [...PHOTO_POSES];
+        }
+
+        const pose = availablePoses[Math.floor(Math.random() * availablePoses.length)];
         mission = {
           type: 'photo',
           targetPlayerId: target.id,
@@ -400,8 +410,18 @@ function assignMission(playerId, withCooldown = false) {
           completed: false
         };
       } else {
-        // Terminal mission
-        const terminal = TERMINALS[Math.floor(Math.random() * TERMINALS.length)];
+        // Terminal mission - track visited terminals to avoid repeats
+        const visitedTerminals = player.visitedTerminals || [];
+        let availableTerminals = TERMINALS.filter(t => !visitedTerminals.includes(t));
+
+        // If all terminals visited, reset and start over
+        if (availableTerminals.length === 0) {
+          player.visitedTerminals = [];
+          saveGuests();
+          availableTerminals = [...TERMINALS];
+        }
+
+        const terminal = availableTerminals[Math.floor(Math.random() * availableTerminals.length)];
         mission = {
           type: 'terminal',
           targetPlayerId: target.id,
@@ -517,9 +537,16 @@ app.post('/api/terminal/:terminalId/validate', (req, res) => {
   mission.completed = true;
   player.score = (player.score || 0) + 1;
   player.percent = (player.percent || 0) + settings.rate;
+
+  // Track visited terminal to avoid repeats
+  if (!player.visitedTerminals) {
+    player.visitedTerminals = [];
+  }
+  player.visitedTerminals.push(mission.terminalId);
+
   saveGuests();
 
-  console.log(`${player.hackerName} completed mission! +1 point`);
+  console.log(`${player.hackerName} completed terminal mission! +1 point (${player.visitedTerminals.length}/${TERMINALS.length} terminals visited)`);
 
   // Assign new mission with 5-minute cooldown
   const newMission = assignMission(playerId, true);
@@ -662,6 +689,13 @@ app.post('/api/photo/:photoId/verify', (req, res) => {
     if (player) {
       player.score = (player.score || 0) + 1;
       player.percent = (player.percent || 0) + settings.rate;
+
+      // Track used pose to avoid repeats
+      if (!player.usedPoses) {
+        player.usedPoses = [];
+      }
+      player.usedPoses.push(photo.pose);
+
       saveGuests();
     }
 
@@ -672,7 +706,7 @@ app.post('/api/photo/:photoId/verify', (req, res) => {
       assignMission(photo.playerId, true);
     }
 
-    console.log(`Photo verified! ${player?.hackerName || 'Unknown'} +1 point`);
+    console.log(`Photo verified! ${player?.hackerName || 'Unknown'} +1 point (${player?.usedPoses?.length || 0}/${PHOTO_POSES.length} poses used)`);
   } else {
     // Reject: allow player to try again
     photo.status = 'rejected';
