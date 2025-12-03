@@ -844,6 +844,100 @@ input[type="text"]::placeholder {
   text-shadow: 0 0 10px var(--green-glow);
 }
 
+/* Trivia Mission */
+.trivia-label {
+  color: var(--yellow);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.trivia-question {
+  color: var(--white);
+  font-size: 1.1rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 5px;
+  border-left: 3px solid var(--yellow);
+}
+
+.trivia-answer-section {
+  margin-top: 1rem;
+}
+
+.trivia-input {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--yellow);
+  border-radius: 5px;
+  color: var(--white);
+  font-family: inherit;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.trivia-input:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+}
+
+.trivia-input::placeholder {
+  color: var(--gray);
+}
+
+.trivia-error {
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.trivia-error.error {
+  color: #ff4444;
+}
+
+.trivia-error.checking {
+  color: var(--yellow);
+}
+
+.trivia-error.success {
+  color: var(--green);
+}
+
+.trivia-hint {
+  font-size: 0.8rem;
+  color: #888;
+  font-style: italic;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.btn-trivia {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #3a3a0a 0%, #1a1a00 100%);
+  border: 2px solid var(--yellow);
+  border-radius: 5px;
+  color: var(--yellow);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-trivia:hover:not(:disabled) {
+  background: var(--yellow);
+  color: #000;
+  box-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
+}
+
+.btn-trivia:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Game Control */
 .game-control {
   display: flex;

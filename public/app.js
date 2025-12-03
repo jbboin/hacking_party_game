@@ -165,12 +165,77 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Submit trivia answer
+async function submitTrivia() {
+  const answerInput = document.getElementById('trivia-answer');
+  const answer = answerInput.value.trim();
+  const playerId = localStorage.getItem('hackerId');
+
+  if (!answer) {
+    alert('Please enter an answer');
+    return;
+  }
+
+  const submitBtn = document.getElementById('submit-trivia-btn');
+  const errorEl = document.getElementById('trivia-error');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'CHECKING...';
+
+  // Show checking message
+  if (errorEl) {
+    errorEl.textContent = 'Checking answer...';
+    errorEl.classList.remove('hidden', 'error');
+    errorEl.classList.add('checking');
+  }
+
+  try {
+    const response = await fetch('/api/trivia/answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId: parseInt(playerId), answer })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      answerInput.value = '';
+      if (errorEl) {
+        errorEl.textContent = 'Correct! +1 point!';
+        errorEl.classList.remove('hidden', 'checking', 'error');
+        errorEl.classList.add('success');
+      }
+      // Immediately refresh to show new mission
+      fetchPlayerData();
+    } else {
+      // Show error with optional hint
+      let errorMsg = data.error || 'Wrong answer!';
+      if (data.hint) {
+        errorMsg += ` (${data.hint})`;
+      }
+      if (errorEl) {
+        errorEl.textContent = errorMsg;
+        errorEl.classList.remove('hidden', 'checking');
+        errorEl.classList.add('error');
+      } else {
+        alert(errorMsg);
+      }
+    }
+  } catch (err) {
+    console.error('Trivia submission failed:', err);
+    alert('Failed to submit answer');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'SUBMIT';
+  }
+}
+
 // Make functions globally available
 window.toggleAccessCode = toggleAccessCode;
 window.revealMission = revealMission;
 window.uploadPhoto = uploadPhoto;
 window.previewPhoto = previewPhoto;
 window.verifyPhoto = verifyPhoto;
+window.submitTrivia = submitTrivia;
 
 // Check if already registered and verify with server
 async function checkExistingSession() {
@@ -347,9 +412,14 @@ async function fetchPlayerData(playerId) {
 
       // Check if this is a new mission
       const missionType = data.mission.type || 'terminal';
-      const currentMissionId = missionType === 'photo'
-        ? `photo-${data.mission.targetPlayerId}-${data.mission.pose}`
-        : `terminal-${data.mission.targetPlayerId}-${data.mission.terminalId}`;
+      let currentMissionId;
+      if (missionType === 'photo') {
+        currentMissionId = `photo-${data.mission.targetPlayerId}-${data.mission.pose}`;
+      } else if (missionType === 'trivia') {
+        currentMissionId = `trivia-${data.mission.questionIndex}`;
+      } else {
+        currentMissionId = `terminal-${data.mission.targetPlayerId}-${data.mission.terminalId}`;
+      }
       const isNewMission = lastMissionId !== currentMissionId;
       const wasRevealed = localStorage.getItem('missionRevealed') === 'true';
 
@@ -396,6 +466,18 @@ async function fetchPlayerData(playerId) {
               </div>
             `;
           }
+        } else if (missionType === 'trivia') {
+          // Trivia mission
+          missionContent.innerHTML = `
+            <p class="trivia-label">> TRIVIA QUESTION:</p>
+            <p class="trivia-question">${escapeHtml(data.mission.question)}</p>
+            <div class="trivia-answer-section">
+              <input type="text" id="trivia-answer" class="trivia-input" placeholder="Type your answer..." autocomplete="off">
+              <p id="trivia-error" class="trivia-error hidden"></p>
+              <button id="submit-trivia-btn" class="btn-trivia" onclick="submitTrivia()">SUBMIT</button>
+              <p class="trivia-hint">Real hackers don't trust megacorps like Google. Ask a fellow hacker instead.</p>
+            </div>
+          `;
         } else {
           // Terminal mission
           const terminalDisplay = terminalNames[data.mission.terminalId] || data.mission.terminalId.toUpperCase();

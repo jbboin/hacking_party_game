@@ -8,6 +8,46 @@ const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'guests.json');
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 const PHOTOS_DIR = path.join(__dirname, 'public', 'photos');
+const TRIVIA_FILE = path.join(__dirname, 'trivia.csv');
+
+// Load trivia questions from CSV
+function loadTrivia() {
+  try {
+    if (fs.existsSync(TRIVIA_FILE)) {
+      const content = fs.readFileSync(TRIVIA_FILE, 'utf8');
+      const lines = content.trim().split('\n');
+      // Skip header line
+      const questions = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        // Parse CSV line (handles quoted fields)
+        const match = line.match(/^"([^"]+)",(.+)$/);
+        if (match) {
+          questions.push({
+            question: match[1],
+            answer: match[2].trim()
+          });
+        } else {
+          // Simple CSV without quotes
+          const parts = line.split(',');
+          if (parts.length >= 2) {
+            questions.push({
+              question: parts[0],
+              answer: parts.slice(1).join(',').trim()
+            });
+          }
+        }
+      }
+      console.log(`Loaded ${questions.length} trivia questions`);
+      return questions;
+    }
+  } catch (err) {
+    console.error('Error loading trivia:', err);
+  }
+  return [];
+}
+
+const triviaQuestions = loadTrivia();
 
 // Ensure photos directory exists
 if (!fs.existsSync(PHOTOS_DIR)) {
@@ -60,7 +100,7 @@ const PHOTO_POSES = [
 ];
 
 // Mission types
-const MISSION_TYPES = ['terminal', 'photo'];
+const MISSION_TYPES = ['terminal', 'photo', 'trivia'];
 
 // Cooldown duration (5 minutes in milliseconds)
 const MISSION_COOLDOWN_MS = 5 * 60 * 1000;
@@ -278,38 +318,87 @@ function assignMission(playerId, withCooldown = false) {
   const player = guests.find(g => g.id === playerId);
   if (!player) return null;
 
-  // Get teammates (same team, not self)
-  const teammates = guests.filter(g => g.team === player.team && g.id !== playerId);
-  if (teammates.length === 0) return null;
-
-  // Pick a random teammate
-  const target = teammates[Math.floor(Math.random() * teammates.length)];
-
   // Randomly choose mission type
   const missionType = MISSION_TYPES[Math.floor(Math.random() * MISSION_TYPES.length)];
 
   let mission;
 
-  if (missionType === 'photo') {
-    // Photo mission
-    const pose = PHOTO_POSES[Math.floor(Math.random() * PHOTO_POSES.length)];
+  if (missionType === 'trivia') {
+    // Trivia mission - doesn't require teammate
+    if (triviaQuestions.length === 0) {
+      // Fallback to terminal if no trivia questions
+      return assignMission(playerId, withCooldown);
+    }
+
+    // Get player's answered questions to avoid repeats
+    const player = guests.find(g => g.id === playerId);
+    const answeredTrivia = player?.answeredTrivia || [];
+
+    // Get available questions (not yet answered by this player)
+    const availableIndices = triviaQuestions
+      .map((_, idx) => idx)
+      .filter(idx => !answeredTrivia.includes(idx));
+
+    // If all questions answered, reset and start over
+    if (availableIndices.length === 0) {
+      if (player) {
+        player.answeredTrivia = [];
+        saveGuests();
+      }
+      availableIndices.push(...triviaQuestions.map((_, idx) => idx));
+    }
+
+    const questionIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+    const trivia = triviaQuestions[questionIndex];
     mission = {
-      type: 'photo',
-      targetPlayerId: target.id,
-      targetPlayerName: target.hackerName,
-      pose: pose,
+      type: 'trivia',
+      questionIndex: questionIndex,
+      question: trivia.question,
       completed: false
     };
   } else {
-    // Terminal mission
-    const terminal = TERMINALS[Math.floor(Math.random() * TERMINALS.length)];
-    mission = {
-      type: 'terminal',
-      targetPlayerId: target.id,
-      targetPlayerName: target.hackerName,
-      terminalId: terminal,
-      completed: false
-    };
+    // Terminal and Photo missions require teammates
+    const teammates = guests.filter(g => g.team === player.team && g.id !== playerId);
+    if (teammates.length === 0) {
+      // No teammates - try trivia instead if available
+      if (triviaQuestions.length > 0) {
+        const questionIndex = Math.floor(Math.random() * triviaQuestions.length);
+        const trivia = triviaQuestions[questionIndex];
+        mission = {
+          type: 'trivia',
+          questionIndex: questionIndex,
+          question: trivia.question,
+          completed: false
+        };
+      } else {
+        return null;
+      }
+    } else {
+      // Pick a random teammate
+      const target = teammates[Math.floor(Math.random() * teammates.length)];
+
+      if (missionType === 'photo') {
+        // Photo mission
+        const pose = PHOTO_POSES[Math.floor(Math.random() * PHOTO_POSES.length)];
+        mission = {
+          type: 'photo',
+          targetPlayerId: target.id,
+          targetPlayerName: target.hackerName,
+          pose: pose,
+          completed: false
+        };
+      } else {
+        // Terminal mission
+        const terminal = TERMINALS[Math.floor(Math.random() * TERMINALS.length)];
+        mission = {
+          type: 'terminal',
+          targetPlayerId: target.id,
+          targetPlayerName: target.hackerName,
+          terminalId: terminal,
+          completed: false
+        };
+      }
+    }
   }
 
   // Add cooldown if requested (after earning a point)
@@ -589,6 +678,86 @@ app.post('/api/photo/:photoId/verify', (req, res) => {
   res.json({
     success: true,
     approved,
+    scores: getTeamScores()
+  });
+});
+
+// API: Submit trivia answer
+app.post('/api/trivia/answer', (req, res) => {
+  const { playerId, answer } = req.body;
+
+  const player = guests.find(g => g.id === playerId);
+  if (!player) {
+    return res.status(404).json({ error: 'Player not found' });
+  }
+
+  const mission = gameState.missions[playerId];
+  if (!mission || mission.type !== 'trivia') {
+    return res.json({ success: false, error: 'No active trivia mission' });
+  }
+
+  if (mission.completed) {
+    return res.json({ success: false, error: 'Mission already completed' });
+  }
+
+  // Get the correct answer
+  const trivia = triviaQuestions[mission.questionIndex];
+  if (!trivia) {
+    return res.json({ success: false, error: 'Question not found' });
+  }
+
+  // Normalize function: lowercase, strip punctuation, collapse whitespace
+  const normalize = (str) => str
+    .toLowerCase()
+    .replace(/[-]/g, ' ')          // Replace hyphens with spaces
+    .replace(/[.,!?'":]/g, '')     // Remove other punctuation
+    .replace(/\s+/g, ' ')          // Collapse whitespace
+    .trim();
+
+  const normalizedAnswer = normalize(answer);
+  const correctAnswers = trivia.answer.split('/').map(a => normalize(a));
+
+  // Minimum 3 characters to prevent "e" matching everything
+  if (normalizedAnswer.length < 3) {
+    return res.json({ success: false, error: 'Answer too short! Try again.' });
+  }
+
+  // Check if answer matches: user's answer must contain the correct answer
+  const isCorrect = correctAnswers.some(correct => {
+    return normalizedAnswer.includes(correct);
+  });
+
+  if (!isCorrect) {
+    console.log(`${player.hackerName} wrong trivia answer: "${answer}" (expected: "${trivia.answer}")`);
+    return res.json({
+      success: false,
+      error: 'Wrong answer! Try again.',
+      hint: trivia.answer.length <= 10 ? `Hint: ${trivia.answer.length} characters` : null
+    });
+  }
+
+  // Correct! Award point and assign new mission
+  mission.completed = true;
+  player.score = (player.score || 0) + 1;
+  player.percent = (player.percent || 0) + settings.rate;
+
+  // Track answered question to avoid repeats
+  if (!player.answeredTrivia) {
+    player.answeredTrivia = [];
+  }
+  player.answeredTrivia.push(mission.questionIndex);
+
+  saveGuests();
+
+  console.log(`${player.hackerName} answered trivia correctly! +1 point (${player.answeredTrivia.length}/${triviaQuestions.length} questions answered)`);
+
+  // Assign new mission with cooldown
+  const newMission = assignMission(playerId, true);
+
+  res.json({
+    success: true,
+    message: 'Correct! Mission complete.',
+    newMission: newMission,
     scores: getTeamScores()
   });
 });
