@@ -1,10 +1,16 @@
-// Terminal name mapping
+// Terminal name mapping (cryptic location hints)
 const terminalNames = {
-  'alpha': 'TERMINAL ALPHA',
-  'beta': 'TERMINAL BETA',
-  'gamma': 'TERMINAL GAMMA',
-  'delta': 'TERMINAL DELTA',
-  'epsilon': 'TERMINAL EPSILON'
+  'permafrost': 'PERMAFROST',
+  'radiation-pod': 'RADIATION-POD',
+  'player-one': 'PLAYER-ONE',
+  'junk-sector': 'JUNK-SECTOR',
+  'pixel-wall': 'PIXEL-WALL',
+  'char-module': 'CHAR-MODULE',
+  'evacuation-bay': 'EVACUATION-BAY',
+  'centrifuge': 'CENTRIFUGE',
+  'rain-chamber': 'RAIN-CHAMBER',
+  'airlock': 'AIRLOCK',
+  'nutrient-bank': 'NUTRIENT-BANK'
 };
 
 // Track mission state to detect new missions
@@ -445,18 +451,19 @@ async function fetchPlayerData(playerId) {
       const wasPendingVerification = missionContent.innerHTML.includes('Waiting for');
 
       if (needsRender || (isPendingVerification !== wasPendingVerification)) {
+        const teamClass = data.team === 'red' ? 'team-red-text' : 'team-blue-text';
         if (missionType === 'photo') {
           if (isPendingVerification) {
             // Photo uploaded, waiting for verification
             missionContent.innerHTML = `
               <p>> Photo uploaded!</p>
-              <p class="pending-verification">> Waiting for <span class="teammate-name">${data.mission.targetPlayerName}</span> to verify...</p>
+              <p class="pending-verification">> Waiting for <span class="teammate-name ${teamClass}">${data.mission.targetPlayerName}</span> to verify...</p>
               <p style="color: var(--gray); font-size: 0.9rem;">> Ask them to check their phone</p>
             `;
           } else {
             // Photo mission - need to upload
             missionContent.innerHTML = `
-              <p>> Take a selfie with <span class="teammate-name">${data.mission.targetPlayerName}</span></p>
+              <p>> Take a selfie with <span class="teammate-name ${teamClass}">${data.mission.targetPlayerName}</span></p>
               <p>> Pose: <span class="pose-name">${data.mission.pose}</span></p>
               <div class="photo-upload-section">
                 <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="previewPhoto(this)">
@@ -482,9 +489,9 @@ async function fetchPlayerData(playerId) {
           // Terminal mission
           const terminalDisplay = terminalNames[data.mission.terminalId] || data.mission.terminalId.toUpperCase();
           missionContent.innerHTML = `
-            <p>> Find <span class="terminal-name">${terminalDisplay}</span></p>
-            <p>> Get the access code from <span class="teammate-name">${data.mission.targetPlayerName}</span></p>
-            <p>> Enter the code at the terminal</p>
+            <p>> Get the access code from <span class="teammate-name ${teamClass}">${data.mission.targetPlayerName}</span></p>
+            <p>> Find the <span class="terminal-name">${terminalDisplay}</span> terminal</p>
+            <p>> Scan the QR code and authenticate</p>
           `;
         }
       }

@@ -122,13 +122,19 @@
     const pathParts = window.location.pathname.split('/');
     const terminalId = pathParts[pathParts.length - 1];
 
-    // Terminal display names
+    // Terminal display names (cryptic location hints)
     const terminalNames = {
-      'alpha': 'TERMINAL ALPHA',
-      'beta': 'TERMINAL BETA',
-      'gamma': 'TERMINAL GAMMA',
-      'delta': 'TERMINAL DELTA',
-      'epsilon': 'TERMINAL EPSILON'
+      'permafrost': 'PERMAFROST',
+      'radiation-pod': 'RADIATION-POD',
+      'player-one': 'PLAYER-ONE',
+      'junk-sector': 'JUNK-SECTOR',
+      'pixel-wall': 'PIXEL-WALL',
+      'char-module': 'CHAR-MODULE',
+      'evacuation-bay': 'EVACUATION-BAY',
+      'centrifuge': 'CENTRIFUGE',
+      'rain-chamber': 'RAIN-CHAMBER',
+      'airlock': 'AIRLOCK',
+      'nutrient-bank': 'NUTRIENT-BANK'
     };
 
     // Check if player is logged in
@@ -167,9 +173,13 @@
           resultEl.innerHTML = `
             <p>ACCESS GRANTED</p>
             <p style="font-size: 0.9rem; margin-top: 0.5rem;">+1 point for your team!</p>
-            <p style="font-size: 0.8rem; color: #00aa00; margin-top: 1rem;">Check your phone for your next mission.</p>
+            <p style="font-size: 0.8rem; color: #00aa00; margin-top: 1rem;">Redirecting to your status page...</p>
           `;
           document.getElementById('code-input').value = '';
+          // Redirect to mission page after 2 seconds
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
         } else {
           resultEl.classList.add('error');
           resultEl.textContent = data.error || 'ACCESS DENIED';

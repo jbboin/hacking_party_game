@@ -82,8 +82,20 @@ const ACCESS_CODES = [
   'DAEMON', 'KERNEL', 'PROXY', 'FIREWALL', 'BREACH'
 ];
 
-// Terminal definitions
-const TERMINALS = ['alpha', 'beta', 'gamma', 'delta', 'epsilon'];
+// Terminal definitions (cryptic location hints)
+const TERMINALS = [
+  'permafrost',     // freezer
+  'radiation-pod',  // microwave
+  'player-one',     // PS5
+  'junk-sector',    // trash
+  'pixel-wall',     // TV
+  'char-module',    // toaster
+  'evacuation-bay', // toilet
+  'centrifuge',     // washing machine
+  'rain-chamber',   // shower
+  'airlock',        // exit door
+  'nutrient-bank'   // pantry
+];
 
 // Photo poses for photo missions
 const PHOTO_POSES = [
