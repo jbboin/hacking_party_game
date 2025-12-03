@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Data files (runtime state)
+guests.json
+photos.json
+settings.json
+
+# Uploaded photos
+public/photos/
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*

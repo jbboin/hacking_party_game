@@ -1,0 +1,445 @@
+// Terminal name mapping
+const terminalNames = {
+  'alpha': 'TERMINAL ALPHA',
+  'beta': 'TERMINAL BETA',
+  'gamma': 'TERMINAL GAMMA',
+  'delta': 'TERMINAL DELTA',
+  'epsilon': 'TERMINAL EPSILON'
+};
+
+// Track mission state to detect new missions
+let lastMissionId = localStorage.getItem('lastMissionId') || null;
+
+// Toggle access code visibility
+function toggleAccessCode() {
+  const codeEl = document.getElementById('access-code');
+  const hintEl = document.querySelector('.tap-hint');
+
+  if (codeEl.classList.contains('hidden-code')) {
+    codeEl.classList.remove('hidden-code');
+    codeEl.classList.add('revealed');
+    hintEl.textContent = '(tap to hide)';
+  } else {
+    codeEl.classList.add('hidden-code');
+    codeEl.classList.remove('revealed');
+    hintEl.textContent = '(tap to reveal)';
+  }
+}
+
+// Reveal mission content
+function revealMission() {
+  const unreadEl = document.getElementById('mission-unread');
+  const revealedEl = document.getElementById('mission-revealed');
+
+  unreadEl.classList.add('hidden');
+  revealedEl.classList.remove('hidden');
+
+  // Save revealed state to localStorage
+  localStorage.setItem('missionRevealed', 'true');
+}
+
+// Upload photo for photo mission
+async function uploadPhoto() {
+  const fileInput = document.getElementById('photo-input');
+  const file = fileInput.files[0];
+  const playerId = localStorage.getItem('hackerId');
+
+  if (!file) {
+    alert('Please select a photo first');
+    return;
+  }
+
+  const uploadBtn = document.getElementById('upload-photo-btn');
+  uploadBtn.disabled = true;
+  uploadBtn.textContent = 'UPLOADING...';
+
+  const formData = new FormData();
+  formData.append('photo', file);
+  formData.append('playerId', playerId);
+
+  try {
+    const response = await fetch('/api/photo/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Clear the file input
+      fileInput.value = '';
+      document.getElementById('photo-preview').classList.add('hidden');
+      document.getElementById('photo-preview').src = '';
+      // Mission will update via polling
+    } else {
+      alert(data.error || 'Upload failed');
+    }
+  } catch (err) {
+    console.error('Upload failed:', err);
+    alert('Failed to upload photo');
+  } finally {
+    uploadBtn.disabled = false;
+    uploadBtn.textContent = 'UPLOAD PHOTO';
+  }
+}
+
+// Preview selected photo
+function previewPhoto(input) {
+  const preview = document.getElementById('photo-preview');
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      preview.src = e.target.result;
+      preview.classList.remove('hidden');
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+// Verify a photo (approve or reject)
+async function verifyPhoto(photoId, approved) {
+  const playerId = localStorage.getItem('hackerId');
+  const btn = document.querySelector(`[data-photo-id="${photoId}"]`);
+  if (btn) btn.disabled = true;
+
+  try {
+    const response = await fetch(`/api/photo/${photoId}/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verifierId: parseInt(playerId), approved })
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      // Refresh verifications
+      fetchVerifications(playerId);
+    } else {
+      alert(data.error || 'Verification failed');
+    }
+  } catch (err) {
+    console.error('Verification failed:', err);
+    alert('Failed to verify photo');
+  }
+}
+
+// Fetch pending verification requests
+async function fetchVerifications(playerId) {
+  try {
+    const response = await fetch(`/api/player/${playerId}/verifications`);
+    const verifications = await response.json();
+
+    const container = document.getElementById('verifications-container');
+    const box = document.getElementById('verifications-box');
+
+    if (verifications.length > 0) {
+      box.classList.remove('hidden');
+      container.innerHTML = verifications.map(v => `
+        <div class="verification-card">
+          <img src="/photos/${v.filename}" class="verification-photo" alt="Photo to verify">
+          <div class="verification-info">
+            <p><span class="teammate-name">${escapeHtml(v.playerName)}</span> wants verification</p>
+            <p class="pose-name">"${escapeHtml(v.pose)}"</p>
+          </div>
+          <div class="verification-buttons">
+            <button class="btn-approve" data-photo-id="${v.id}" onclick="verifyPhoto(${v.id}, true)">APPROVE</button>
+            <button class="btn-reject" data-photo-id="${v.id}" onclick="verifyPhoto(${v.id}, false)">REJECT</button>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      box.classList.add('hidden');
+      container.innerHTML = '';
+    }
+  } catch (err) {
+    console.error('Failed to fetch verifications:', err);
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Make functions globally available
+window.toggleAccessCode = toggleAccessCode;
+window.revealMission = revealMission;
+window.uploadPhoto = uploadPhoto;
+window.previewPhoto = previewPhoto;
+window.verifyPhoto = verifyPhoto;
+
+// Check if already registered and verify with server
+async function checkExistingSession() {
+  const storedHacker = localStorage.getItem('hackerName');
+  const storedTeam = localStorage.getItem('team');
+  const storedId = localStorage.getItem('hackerId');
+  if (!storedHacker) return;
+
+  // Verify this user still exists on server
+  try {
+    const response = await fetch('/api/guests');
+    const guests = await response.json();
+    const guest = guests.find(g => g.hackerName.toLowerCase() === storedHacker.toLowerCase());
+
+    if (guest) {
+      // Update stored ID and also set odGuestId for terminal pages
+      localStorage.setItem('hackerId', guest.id);
+      localStorage.setItem('odGuestId', guest.id);
+      showWelcomeScreen(storedHacker, guest.team || storedTeam);
+      // Start polling for player data
+      startPlayerPolling(guest.id);
+    } else {
+      logout();
+    }
+  } catch (err) {
+    showWelcomeScreen(storedHacker, storedTeam);
+  }
+}
+
+checkExistingSession();
+
+// Team selection
+document.querySelectorAll('.btn-team').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.btn-team').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('selected-team').value = btn.dataset.team;
+    document.querySelector('.btn-hack').disabled = false;
+  });
+});
+
+document.getElementById('register-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const hackerName = document.getElementById('hacker-name').value.trim();
+  const team = document.getElementById('selected-team').value;
+  const errorEl = document.getElementById('error-message');
+  const submitBtn = document.querySelector('.btn-hack');
+
+  if (!hackerName) {
+    errorEl.textContent = '> ERROR: Alias cannot be empty';
+    return;
+  }
+
+  if (!team) {
+    errorEl.textContent = '> ERROR: You must choose a pill';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<span>[ CONNECTING... ]</span>';
+  errorEl.textContent = '';
+
+  try {
+    const response = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hackerName, team })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Registration failed');
+    }
+
+    localStorage.setItem('hackerName', hackerName);
+    localStorage.setItem('hackerId', data.guest.id);
+    localStorage.setItem('odGuestId', data.guest.id); // For terminal pages
+    localStorage.setItem('team', team);
+
+    showWelcomeScreen(hackerName, team);
+
+    // Display access code immediately
+    if (data.guest.accessCode) {
+      document.getElementById('access-code').textContent = data.guest.accessCode;
+    }
+
+    // Start polling for player data
+    startPlayerPolling(data.guest.id);
+
+  } catch (error) {
+    errorEl.textContent = `> ERROR: ${error.message}`;
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<span>[ INITIALIZE ]</span>';
+  }
+});
+
+function showWelcomeScreen(hackerName, team) {
+  document.getElementById('register-screen').classList.add('hidden');
+  document.getElementById('welcome-screen').classList.remove('hidden');
+  document.getElementById('display-name').textContent = hackerName;
+
+  const badge = document.getElementById('team-badge');
+  if (team === 'red') {
+    badge.textContent = 'RED PILL TEAM';
+    badge.className = 'team-badge team-red';
+  } else {
+    badge.textContent = 'BLUE PILL TEAM';
+    badge.className = 'team-badge team-blue';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('hackerName');
+  localStorage.removeItem('hackerId');
+  localStorage.removeItem('odGuestId');
+  localStorage.removeItem('team');
+  document.getElementById('welcome-screen').classList.add('hidden');
+  document.getElementById('register-screen').classList.remove('hidden');
+}
+
+window.logout = logout;
+
+// Fetch player data and update UI
+async function fetchPlayerData(playerId) {
+  try {
+    const response = await fetch(`/api/player/${playerId}`);
+    if (!response.ok) return;
+
+    const data = await response.json();
+
+    // Update access code
+    if (data.accessCode) {
+      document.getElementById('access-code').textContent = data.accessCode;
+    }
+
+    // Update player score
+    document.getElementById('player-score').textContent = data.score || 0;
+
+    // Update mission display
+    const missionBox = document.getElementById('mission-box');
+    const missionContent = document.getElementById('mission-content');
+    const waitingBox = document.getElementById('waiting-box');
+
+    const missionUnread = document.getElementById('mission-unread');
+    const missionRevealed = document.getElementById('mission-revealed');
+
+    // Check for cooldown
+    const hasCooldown = data.mission && data.mission.cooldownUntil && data.mission.cooldownUntil > Date.now();
+
+    if (data.gameStarted && data.mission && !data.mission.completed && hasCooldown) {
+      // Mission on cooldown - show countdown
+      missionBox.classList.remove('hidden');
+      waitingBox.classList.add('hidden');
+      missionUnread.classList.add('hidden');
+      missionRevealed.classList.remove('hidden');
+
+      const remainingMs = data.mission.cooldownUntil - Date.now();
+      const mins = Math.floor(remainingMs / 60000);
+      const secs = Math.floor((remainingMs % 60000) / 1000);
+      const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+      missionContent.innerHTML = `
+        <p class="cooldown-message">> Mission complete! Take a break...</p>
+        <p class="cooldown-timer">> Next mission in: <span class="countdown">${timeStr}</span></p>
+      `;
+    } else if (data.gameStarted && data.mission && !data.mission.completed) {
+      // Show mission
+      missionBox.classList.remove('hidden');
+      waitingBox.classList.add('hidden');
+
+      // Check if this is a new mission
+      const missionType = data.mission.type || 'terminal';
+      const currentMissionId = missionType === 'photo'
+        ? `photo-${data.mission.targetPlayerId}-${data.mission.pose}`
+        : `terminal-${data.mission.targetPlayerId}-${data.mission.terminalId}`;
+      const isNewMission = lastMissionId !== currentMissionId;
+      const wasRevealed = localStorage.getItem('missionRevealed') === 'true';
+
+      // Check if content needs to be rendered (new mission OR empty content on page load)
+      const needsRender = isNewMission || missionContent.innerHTML.trim() === '';
+
+      if (isNewMission) {
+        // Reset to unread state for new mission
+        missionUnread.classList.remove('hidden');
+        missionRevealed.classList.add('hidden');
+        lastMissionId = currentMissionId;
+        localStorage.setItem('lastMissionId', currentMissionId);
+        localStorage.setItem('missionRevealed', 'false');
+      } else if (wasRevealed) {
+        // Same mission, already revealed - keep it revealed
+        missionUnread.classList.add('hidden');
+        missionRevealed.classList.remove('hidden');
+      }
+
+      // Render content only when needed (new mission or first page load)
+      // Also re-render if pendingVerification state changed
+      const isPendingVerification = data.mission.pendingVerification === true;
+      const wasPendingVerification = missionContent.innerHTML.includes('Waiting for');
+
+      if (needsRender || (isPendingVerification !== wasPendingVerification)) {
+        if (missionType === 'photo') {
+          if (isPendingVerification) {
+            // Photo uploaded, waiting for verification
+            missionContent.innerHTML = `
+              <p>> Photo uploaded!</p>
+              <p class="pending-verification">> Waiting for <span class="teammate-name">${data.mission.targetPlayerName}</span> to verify...</p>
+              <p style="color: var(--gray); font-size: 0.9rem;">> Ask them to check their phone</p>
+            `;
+          } else {
+            // Photo mission - need to upload
+            missionContent.innerHTML = `
+              <p>> Take a selfie with <span class="teammate-name">${data.mission.targetPlayerName}</span></p>
+              <p>> Pose: <span class="pose-name">${data.mission.pose}</span></p>
+              <div class="photo-upload-section">
+                <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+                <img id="photo-preview" class="photo-preview hidden" alt="Preview">
+                <button id="upload-photo-btn" class="btn-upload" onclick="uploadPhoto()">UPLOAD PHOTO</button>
+              </div>
+            `;
+          }
+        } else {
+          // Terminal mission
+          const terminalDisplay = terminalNames[data.mission.terminalId] || data.mission.terminalId.toUpperCase();
+          missionContent.innerHTML = `
+            <p>> Find <span class="terminal-name">${terminalDisplay}</span></p>
+            <p>> Get the access code from <span class="teammate-name">${data.mission.targetPlayerName}</span></p>
+            <p>> Enter the code at the terminal</p>
+          `;
+        }
+      }
+    } else if (data.gameStarted && data.mission && data.mission.completed) {
+      // Mission completed, waiting for new one
+      missionBox.classList.remove('hidden');
+      waitingBox.classList.add('hidden');
+      missionUnread.classList.add('hidden');
+      missionRevealed.classList.remove('hidden');
+      missionContent.innerHTML = '<p class="mission-completed">Mission complete! New mission loading...</p>';
+    } else if (data.gameStarted && !data.mission) {
+      // Game started but no mission (no teammates)
+      missionBox.classList.remove('hidden');
+      waitingBox.classList.add('hidden');
+      missionUnread.classList.add('hidden');
+      missionRevealed.classList.remove('hidden');
+      missionContent.innerHTML = '<p style="color: #ff9900;">> Waiting for more teammates to join your team...</p>';
+    } else if (!data.gameStarted) {
+      // Game not started yet
+      missionBox.classList.add('hidden');
+      waitingBox.classList.remove('hidden');
+      // Reset mission state when game stops
+      lastMissionId = null;
+      localStorage.removeItem('lastMissionId');
+      localStorage.removeItem('missionRevealed');
+    }
+
+  } catch (err) {
+    console.error('Failed to fetch player data:', err);
+  }
+}
+
+// Start polling for player updates
+let pollingInterval = null;
+
+function startPlayerPolling(playerId) {
+  // Initial fetch
+  fetchPlayerData(playerId);
+  fetchVerifications(playerId);
+
+  // Poll every 3 seconds
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = setInterval(() => {
+    fetchPlayerData(playerId);
+    fetchVerifications(playerId);
+  }, 3000);
+}

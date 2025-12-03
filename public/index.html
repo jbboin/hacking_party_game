@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome, Hacker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Registration Screen -->
+    <div id="register-screen" class="screen">
+      <div class="terminal-header">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+      </div>
+      <div class="terminal-body">
+        <h1 class="glitch" data-text="ACCESS REQUIRED">ACCESS REQUIRED</h1>
+        <p class="typing">Initiating secure connection...</p>
+        <p class="prompt">Enter your hacker alias:</p>
+        <form id="register-form">
+          <input
+            type="text"
+            id="hacker-name"
+            placeholder="_"
+            autocomplete="off"
+            maxlength="30"
+            required
+          >
+          <p class="prompt">Choose your path:</p>
+          <div class="team-select">
+            <button type="button" class="btn-team btn-blue" data-team="blue">
+              <span class="pill">BLUE PILL</span>
+            </button>
+            <button type="button" class="btn-team btn-red" data-team="red">
+              <span class="pill">RED PILL</span>
+            </button>
+          </div>
+          <input type="hidden" id="selected-team" value="">
+          <button type="submit" class="btn-hack" disabled>
+            <span>[ INITIALIZE ]</span>
+          </button>
+        </form>
+        <p id="error-message" class="error"></p>
+      </div>
+    </div>
+
+    <!-- Welcome Screen (after registration) -->
+    <div id="welcome-screen" class="screen hidden">
+      <div class="terminal-header">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+      </div>
+      <div class="terminal-body">
+        <h1 class="glitch success" data-text="ACCESS GRANTED">ACCESS GRANTED</h1>
+        <p class="welcome-text">Welcome, <span id="display-name"></span></p>
+        <div class="badges-row">
+          <div id="team-badge" class="team-badge"></div>
+          <div id="score-badge" class="score-badge"><span id="player-score">0</span> PTS</div>
+        </div>
+
+        <!-- Access Code Display -->
+        <div class="access-code-box" id="access-code-box" onclick="toggleAccessCode()">
+          <p class="access-code-label">YOUR ACCESS CODE <span class="tap-hint">(tap to reveal)</span></p>
+          <p class="access-code hidden-code" id="access-code">---</p>
+          <p class="access-code-hint">Share this with teammates who need it</p>
+        </div>
+
+        <!-- Mission Display (hidden until game starts) -->
+        <div id="mission-box" class="mission-box hidden">
+          <div id="mission-unread" class="mission-unread" onclick="revealMission()">
+            <span class="mission-alert">NEW MISSION</span>
+            <p>Tap to reveal your orders</p>
+          </div>
+          <div id="mission-revealed" class="mission-revealed hidden">
+            <p class="mission-label">CURRENT MISSION</p>
+            <div id="mission-content" class="mission-content"></div>
+          </div>
+        </div>
+
+        <!-- Verification Requests -->
+        <div id="verifications-box" class="verifications-box hidden">
+          <p class="verifications-label">VERIFY PHOTOS</p>
+          <div id="verifications-container"></div>
+        </div>
+
+        <!-- Waiting state -->
+        <div id="waiting-box" class="status-box">
+          <p>> Connection established</p>
+          <p>> Identity verified</p>
+          <p>> Awaiting mission briefing...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

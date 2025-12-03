@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join the Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      color: #00ff00;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      text-shadow: 0 0 20px rgba(0,255,0,0.5);
+    }
+    p {
+      font-size: 1.5rem;
+      margin-bottom: 2rem;
+      color: #00aa00;
+    }
+    #qr-container {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 1rem;
+      margin-bottom: 2rem;
+    }
+    #qr-container img {
+      display: block;
+      width: 280px;
+      height: 280px;
+    }
+    .url {
+      font-size: 1.2rem;
+      color: #fff;
+      background: #1a1a1a;
+      padding: 1rem 2rem;
+      border-radius: 0.5rem;
+      border: 1px solid #00ff00;
+    }
+  </style>
+</head>
+<body>
+  <h1>SCAN TO JOIN</h1>
+  <p>Connect to WiFi first!</p>
+  <div id="qr-container">
+    <img id="qr" alt="QR Code">
+  </div>
+  <div class="url" id="url"></div>
+
+  <script>
+    const url = `http://${window.location.hostname}:${window.location.port || 3000}`;
+    document.getElementById('url').textContent = url;
+    // Use QR Server API (free, no CORS issues)
+    const qrImg = document.getElementById('qr');
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(url)}`;
+  </script>
+</body>
+</html>

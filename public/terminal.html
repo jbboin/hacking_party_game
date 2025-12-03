@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terminal Access</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .terminal-id {
+      font-size: 2rem;
+      color: #00ff00;
+      text-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3rem;
+    }
+
+    .terminal-prompt {
+      color: #00aa00;
+      margin-bottom: 1.5rem;
+    }
+
+    .code-input {
+      background: #0d0d0d;
+      border: 2px solid #00aa00;
+      color: #00ff00;
+      padding: 1rem;
+      font-size: 1.5rem;
+      font-family: inherit;
+      border-radius: 5px;
+      width: 100%;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.2rem;
+      margin-bottom: 1rem;
+    }
+
+    .code-input:focus {
+      outline: none;
+      border-color: #00ff00;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+    }
+
+    .result {
+      padding: 1rem;
+      border-radius: 5px;
+      margin-top: 1rem;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .result.success {
+      background: rgba(0, 255, 0, 0.1);
+      border: 2px solid #00ff00;
+      color: #00ff00;
+    }
+
+    .result.error {
+      background: rgba(255, 0, 0, 0.1);
+      border: 2px solid #ff3333;
+      color: #ff3333;
+    }
+
+    .scan-animation {
+      animation: scan 0.5s ease;
+    }
+
+    @keyframes scan {
+      0% { opacity: 0; transform: translateY(-10px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .not-logged-in {
+      color: #ff3333;
+      text-align: center;
+    }
+
+    .not-logged-in a {
+      color: #00ff00;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="terminal-header">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+      <span class="terminal-title">SECURE ACCESS</span>
+    </div>
+    <div class="terminal-body">
+      <!-- Not logged in state -->
+      <div id="not-logged-in" class="screen hidden">
+        <div class="not-logged-in">
+          <p>You must register first!</p>
+          <p><a href="/">Go to registration</a></p>
+        </div>
+      </div>
+
+      <!-- Terminal interface -->
+      <div id="terminal-screen" class="screen hidden">
+        <div class="terminal-id" id="terminal-name">TERMINAL ALPHA</div>
+        <p class="terminal-prompt">> Enter access code_</p>
+
+        <form id="code-form">
+          <input type="text"
+                 id="code-input"
+                 class="code-input"
+                 placeholder="ACCESS CODE"
+                 autocomplete="off"
+                 maxlength="20">
+          <button type="submit" class="btn-hack">AUTHENTICATE</button>
+        </form>
+
+        <div id="result" class="result hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Get terminal ID from URL
+    const pathParts = window.location.pathname.split('/');
+    const terminalId = pathParts[pathParts.length - 1];
+
+    // Terminal display names
+    const terminalNames = {
+      'alpha': 'TERMINAL ALPHA',
+      'beta': 'TERMINAL BETA',
+      'gamma': 'TERMINAL GAMMA',
+      'delta': 'TERMINAL DELTA',
+      'epsilon': 'TERMINAL EPSILON'
+    };
+
+    // Check if player is logged in
+    const playerId = localStorage.getItem('odGuestId');
+
+    if (!playerId) {
+      document.getElementById('not-logged-in').classList.remove('hidden');
+    } else {
+      document.getElementById('terminal-screen').classList.remove('hidden');
+      document.getElementById('terminal-name').textContent = terminalNames[terminalId] || 'UNKNOWN TERMINAL';
+    }
+
+    // Handle form submission
+    document.getElementById('code-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const code = document.getElementById('code-input').value.trim();
+      const resultEl = document.getElementById('result');
+
+      if (!code) return;
+
+      try {
+        const response = await fetch(`/api/terminal/${terminalId}/validate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerId: parseInt(playerId), code })
+        });
+
+        const data = await response.json();
+
+        resultEl.classList.remove('hidden', 'success', 'error');
+        resultEl.classList.add('scan-animation');
+
+        if (data.success) {
+          resultEl.classList.add('success');
+          resultEl.innerHTML = `
+            <p>ACCESS GRANTED</p>
+            <p style="font-size: 0.9rem; margin-top: 0.5rem;">+1 point for your team!</p>
+            <p style="font-size: 0.8rem; color: #00aa00; margin-top: 1rem;">Check your phone for your next mission.</p>
+          `;
+          document.getElementById('code-input').value = '';
+        } else {
+          resultEl.classList.add('error');
+          resultEl.textContent = data.error || 'ACCESS DENIED';
+        }
+      } catch (err) {
+        resultEl.classList.remove('hidden', 'success');
+        resultEl.classList.add('error');
+        resultEl.textContent = 'Connection error. Try again.';
+      }
+    });
+
+    // Auto-focus input
+    document.getElementById('code-input')?.focus();
+  </script>
+</body>
+</html>

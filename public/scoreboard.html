@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scoreboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0a0a0a;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      overflow: hidden;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      color: #00ff00;
+      text-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3rem;
+    }
+
+    .progress-section {
+      width: 100%;
+      max-width: 900px;
+      margin-bottom: 3rem;
+    }
+
+    .progress-container {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .team-label {
+      font-size: 1.2rem;
+      font-weight: bold;
+      width: 80px;
+      text-align: center;
+    }
+
+    .team-label.blue { color: #4488ff; }
+    .team-label.red { color: #ff4444; }
+
+    .progress-bar {
+      flex: 1;
+      height: 50px;
+      background: #1a1a1a;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      transition: width 0.5s ease;
+      position: relative;
+    }
+
+    .progress-fill.blue {
+      background: linear-gradient(90deg, #2255aa, #4488ff);
+      box-shadow: 0 0 20px rgba(68, 136, 255, 0.5);
+    }
+
+    .progress-fill.red {
+      background: linear-gradient(90deg, #aa2222, #ff4444);
+      box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+    }
+
+    .percent {
+      font-size: 1.5rem;
+      font-weight: bold;
+      width: 80px;
+      text-align: center;
+    }
+
+    .percent.blue { color: #4488ff; }
+    .percent.red { color: #ff4444; }
+
+    /* Teams Section */
+    .teams-section {
+      display: flex;
+      gap: 4rem;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .team-box {
+      flex: 1;
+      padding: 1.5rem;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .team-box.blue {
+      background: rgba(68, 136, 255, 0.1);
+      border: 2px solid #4488ff;
+    }
+
+    .team-box.red {
+      background: rgba(255, 68, 68, 0.1);
+      border: 2px solid #ff4444;
+    }
+
+    .team-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+
+    .team-box.blue .team-title { color: #4488ff; }
+    .team-box.red .team-title { color: #ff4444; }
+
+    .top-players {
+      text-align: left;
+    }
+
+    .top-player {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #333;
+    }
+
+    .top-player:last-child {
+      border-bottom: none;
+    }
+
+    .rank {
+      font-size: 1.2rem;
+      font-weight: bold;
+      width: 30px;
+      color: #666;
+    }
+
+    .rank.first { color: #ffd700; }
+    .rank.second { color: #c0c0c0; }
+    .rank.third { color: #cd7f32; }
+
+    .player-name {
+      flex: 1;
+      font-size: 1.1rem;
+    }
+
+    .player-pts {
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .team-box.blue .player-pts { color: #4488ff; }
+    .team-box.red .player-pts { color: #ff4444; }
+
+    .no-players {
+      color: #666;
+      font-style: italic;
+    }
+
+    /* Winner effect */
+    .team-box.winning {
+      animation: glow 2s ease-in-out infinite;
+    }
+
+    .team-box.blue.winning {
+      animation: glowBlue 2s ease-in-out infinite;
+    }
+
+    .team-box.red.winning {
+      animation: glowRed 2s ease-in-out infinite;
+    }
+
+    @keyframes glowBlue {
+      0%, 100% { box-shadow: 0 0 20px rgba(68, 136, 255, 0.3); }
+      50% { box-shadow: 0 0 40px rgba(68, 136, 255, 0.6); }
+    }
+
+    @keyframes glowRed {
+      0%, 100% { box-shadow: 0 0 20px rgba(255, 68, 68, 0.3); }
+      50% { box-shadow: 0 0 40px rgba(255, 68, 68, 0.6); }
+    }
+  </style>
+</head>
+<body>
+  <h1>HACKING THE MAINFRAME</h1>
+
+  <div class="progress-section">
+    <div class="progress-container">
+      <span class="team-label blue">BLUE</span>
+      <div class="progress-bar">
+        <div class="progress-fill blue" id="blue-progress"></div>
+      </div>
+      <span class="percent blue" id="blue-percent">0%</span>
+    </div>
+    <div class="progress-container">
+      <span class="team-label red">RED</span>
+      <div class="progress-bar">
+        <div class="progress-fill red" id="red-progress"></div>
+      </div>
+      <span class="percent red" id="red-percent">0%</span>
+    </div>
+  </div>
+
+  <div class="teams-section">
+    <div class="team-box blue" id="blue-team">
+      <div class="team-title">BLUE PILL</div>
+      <div class="top-players" id="blue-top"></div>
+    </div>
+    <div class="team-box red" id="red-team">
+      <div class="team-title">RED PILL</div>
+      <div class="top-players" id="red-top"></div>
+    </div>
+  </div>
+
+  <script>
+    let lastScores = { red: 0, blue: 0 };
+
+    async function updateScoreboard() {
+      try {
+        const [scoresRes, guestsRes] = await Promise.all([
+          fetch('/api/scores'),
+          fetch('/api/guests')
+        ]);
+
+        const scores = await scoresRes.json();
+        const guests = await guestsRes.json();
+
+        // Use pre-calculated percentages (accumulated with rate)
+        const bluePercent = Math.min(100, Math.round(scores.bluePercent || 0));
+        const redPercent = Math.min(100, Math.round(scores.redPercent || 0));
+
+        // Update progress bars
+        document.getElementById('blue-progress').style.width = bluePercent + '%';
+        document.getElementById('red-progress').style.width = redPercent + '%';
+        document.getElementById('blue-percent').textContent = bluePercent + '%';
+        document.getElementById('red-percent').textContent = redPercent + '%';
+
+        // Get top 3 players per team
+        const bluePlayers = guests.filter(g => g.team === 'blue').sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 3);
+        const redPlayers = guests.filter(g => g.team === 'red').sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 3);
+
+        // Render top players
+        document.getElementById('blue-top').innerHTML = renderTopPlayers(bluePlayers);
+        document.getElementById('red-top').innerHTML = renderTopPlayers(redPlayers);
+
+        // Highlight winning team
+        const blueBox = document.getElementById('blue-team');
+        const redBox = document.getElementById('red-team');
+        blueBox.classList.remove('winning');
+        redBox.classList.remove('winning');
+        if (scores.blue > scores.red) {
+          blueBox.classList.add('winning');
+        } else if (scores.red > scores.blue) {
+          redBox.classList.add('winning');
+        }
+
+        lastScores = { ...scores };
+      } catch (err) {
+        console.error('Failed to update scoreboard:', err);
+      }
+    }
+
+    function renderTopPlayers(players) {
+      if (players.length === 0) {
+        return '<div class="no-players">No players yet</div>';
+      }
+
+      const ranks = ['first', 'second', 'third'];
+      return players.map((p, i) => `
+        <div class="top-player">
+          <span class="rank ${ranks[i]}">#${i + 1}</span>
+          <span class="player-name">${escapeHtml(p.hackerName)}</span>
+          <span class="player-pts">${p.score || 0}</span>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Initial load
+    updateScoreboard();
+
+    // Update every 2 seconds
+    setInterval(updateScoreboard, 2000);
+  </script>
+</body>
+</html>
