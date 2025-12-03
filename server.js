@@ -74,12 +74,16 @@ const upload = multer({
   }
 });
 
-// Access codes pool - hacker-themed words
+// Access codes pool - hacker-themed words (40 codes)
 const ACCESS_CODES = [
   'CIPHER', 'MATRIX', 'GHOST', 'BINARY', 'VECTOR',
   'NEURAL', 'QUANTUM', 'SHADOW', 'PHOENIX', 'VORTEX',
   'NEXUS', 'OMEGA', 'ENIGMA', 'PULSE', 'CRYPTO',
-  'DAEMON', 'KERNEL', 'PROXY', 'FIREWALL', 'BREACH'
+  'DAEMON', 'KERNEL', 'PROXY', 'FIREWALL', 'BREACH',
+  'SPECTRE', 'ROGUE', 'GLITCH', 'VIRUS', 'MALWARE',
+  'TROJAN', 'WORM', 'SPIDER', 'HUNTER', 'REAPER',
+  'CYPHER', 'STORM', 'BLADE', 'RAZOR', 'COBRA',
+  'FALCON', 'RAVEN', 'WRAITH', 'PHANTOM', 'STEALTH'
 ];
 
 // Terminal definitions (cryptic location hints)
@@ -127,8 +131,8 @@ let gameState = {
 function getUniqueAccessCode(existingCodes) {
   const available = ACCESS_CODES.filter(c => !existingCodes.includes(c));
   if (available.length === 0) {
-    // If all codes used, generate a random one
-    return 'CODE' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    // If all 40 codes used, allow duplicates
+    return ACCESS_CODES[Math.floor(Math.random() * ACCESS_CODES.length)];
   }
   return available[Math.floor(Math.random() * available.length)];
 }
