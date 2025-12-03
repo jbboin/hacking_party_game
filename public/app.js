@@ -323,8 +323,9 @@ async function fetchPlayerData(playerId) {
     const hasCooldown = data.mission && data.mission.cooldownUntil && data.mission.cooldownUntil > Date.now();
 
     if (data.gameStarted && data.mission && !data.mission.completed && hasCooldown) {
-      // Mission on cooldown - show countdown
+      // Mission on cooldown - show countdown (green box)
       missionBox.classList.remove('hidden');
+      missionBox.classList.remove('mission-active');
       waitingBox.classList.add('hidden');
       missionUnread.classList.add('hidden');
       missionRevealed.classList.remove('hidden');
@@ -339,8 +340,9 @@ async function fetchPlayerData(playerId) {
         <p class="cooldown-timer">> Next mission in: <span class="countdown">${timeStr}</span></p>
       `;
     } else if (data.gameStarted && data.mission && !data.mission.completed) {
-      // Show mission
+      // Show mission (yellow box - active mission)
       missionBox.classList.remove('hidden');
+      missionBox.classList.add('mission-active');
       waitingBox.classList.add('hidden');
 
       // Check if this is a new mission
@@ -405,15 +407,17 @@ async function fetchPlayerData(playerId) {
         }
       }
     } else if (data.gameStarted && data.mission && data.mission.completed) {
-      // Mission completed, waiting for new one
+      // Mission completed, waiting for new one (green box)
       missionBox.classList.remove('hidden');
+      missionBox.classList.remove('mission-active');
       waitingBox.classList.add('hidden');
       missionUnread.classList.add('hidden');
       missionRevealed.classList.remove('hidden');
       missionContent.innerHTML = '<p class="mission-completed">Mission complete! New mission loading...</p>';
     } else if (data.gameStarted && !data.mission) {
-      // Game started but no mission (no teammates)
+      // Game started but no mission (no teammates) (green box)
       missionBox.classList.remove('hidden');
+      missionBox.classList.remove('mission-active');
       waitingBox.classList.add('hidden');
       missionUnread.classList.add('hidden');
       missionRevealed.classList.remove('hidden');

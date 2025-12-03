@@ -719,11 +719,16 @@ input[type="text"]::placeholder {
 
 /* Mission Box */
 .mission-box {
-  background: linear-gradient(135deg, rgba(255, 204, 0, 0.1), rgba(255, 153, 0, 0.1));
-  border: 2px solid var(--yellow);
+  background: linear-gradient(135deg, rgba(0, 255, 0, 0.05), rgba(0, 200, 0, 0.05));
+  border: 2px solid var(--green);
   border-radius: 10px;
   padding: 1rem;
   margin: 1.5rem 0;
+}
+
+.mission-box.mission-active {
+  background: linear-gradient(135deg, rgba(255, 204, 0, 0.1), rgba(255, 153, 0, 0.1));
+  border-color: var(--yellow);
 }
 
 /* Unread mission notification */
@@ -783,10 +788,18 @@ input[type="text"]::placeholder {
 
 .mission-label {
   font-size: 0.8rem;
-  color: var(--yellow);
+  color: var(--green);
   margin-bottom: 0.5rem;
   letter-spacing: 0.1rem;
   text-align: center;
+}
+
+.mission-box:not(.mission-active) .mission-label {
+  display: none;
+}
+
+.mission-active .mission-label {
+  color: var(--yellow);
 }
 
 .mission-content {
@@ -820,15 +833,15 @@ input[type="text"]::placeholder {
 
 .cooldown-timer {
   text-align: center;
-  color: var(--yellow);
+  color: var(--green);
   font-size: 1.1rem;
 }
 
 .cooldown-timer .countdown {
   font-size: 1.5rem;
   font-weight: bold;
-  color: var(--yellow);
-  text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+  color: var(--green);
+  text-shadow: 0 0 10px var(--green-glow);
 }
 
 /* Game Control */
