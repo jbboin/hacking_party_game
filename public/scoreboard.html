@@ -233,6 +233,189 @@
       0%, 100% { box-shadow: 0 0 20px rgba(255, 68, 68, 0.3); }
       50% { box-shadow: 0 0 40px rgba(255, 68, 68, 0.6); }
     }
+
+    /* Boss Phase Terminal */
+    .boss-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0a0a0a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 2rem;
+    }
+
+    .boss-screen.hidden {
+      display: none;
+    }
+
+    .boss-terminal {
+      width: 100%;
+      max-width: 900px;
+      height: 80vh;
+      background: #0d0d0d;
+      border: 2px solid #ff9900;
+      border-radius: 10px;
+      box-shadow: 0 0 30px rgba(255, 153, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .boss-terminal-header {
+      background: linear-gradient(90deg, #1a0f00, #2a1500);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 1px solid #ff9900;
+    }
+
+    .boss-terminal-header .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .boss-terminal-header .dot.red { background: #ff5f56; }
+    .boss-terminal-header .dot.yellow { background: #ffbd2e; }
+    .boss-terminal-header .dot.green { background: #27ca40; }
+
+    .boss-terminal-title {
+      flex: 1;
+      text-align: center;
+      color: #ff9900;
+      font-weight: bold;
+      letter-spacing: 0.2rem;
+      font-size: 1rem;
+    }
+
+    .boss-chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .chat-message {
+      max-width: 80%;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+
+    .chat-message.ai {
+      background: rgba(255, 165, 0, 0.15);
+      border: 1px solid #ff9900;
+      color: #ffaa33;
+      align-self: flex-start;
+    }
+
+    .chat-message.user {
+      background: rgba(0, 255, 0, 0.15);
+      border: 1px solid #00ff00;
+      color: #00ff00;
+      align-self: flex-end;
+    }
+
+    .chat-message .sender {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      margin-bottom: 0.25rem;
+    }
+
+    .chat-message.ai .sender { color: #ff9900; }
+    .chat-message.user .sender { color: #00ff00; }
+
+    .boss-player-info {
+      text-align: center;
+      padding: 1rem;
+      border-bottom: 1px solid #333;
+      background: rgba(255, 153, 0, 0.05);
+    }
+
+    .boss-player-info .label {
+      color: #666;
+      font-size: 0.8rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .boss-player-info .player-name {
+      color: #00ff00;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    .boss-player-info .instruction {
+      color: #ff9900;
+      font-size: 1rem;
+      margin-top: 0.5rem;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .typing-indicator {
+      color: #ff9900;
+      font-style: italic;
+      padding: 0.5rem 1rem;
+    }
+
+    .typing-indicator span {
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    /* Chat input section */
+    .boss-input-section {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem;
+      border-top: 1px solid #333;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .boss-message-input {
+      flex: 1;
+      background: #1a1a1a;
+      border: 1px solid #00ff00;
+      color: #00ff00;
+      padding: 0.75rem 1rem;
+      font-family: 'Courier New', monospace;
+      font-size: 1.1rem;
+      border-radius: 5px;
+    }
+
+    .boss-message-input:focus {
+      outline: none;
+      box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+    }
+
+    .boss-message-input:disabled {
+      opacity: 0.5;
+    }
+
+    .typing-indicator {
+      align-self: flex-start;
+      background: rgba(255, 153, 0, 0.1);
+      border: 1px dashed #ff9900;
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      margin: 0;
+    }
+
+    .typing-indicator.hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -240,6 +423,28 @@
   <div class="standby-screen" id="standby-screen">
     <div class="standby-title">AWAITING SIGNAL</div>
     <div class="standby-message">Connecting to mainframe<span class="standby-dots" id="standby-dots">...</span></div>
+  </div>
+
+  <!-- Boss phase screen -->
+  <div class="boss-screen hidden" id="boss-screen">
+    <div class="boss-terminal">
+      <div class="boss-terminal-header">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+        <span class="boss-terminal-title">ROGUE AI TERMINAL v6.6.6</span>
+      </div>
+      <div class="boss-player-info" id="boss-player-info">
+        <div class="label">CHOSEN HACKER</div>
+        <div class="player-name" id="boss-player-name">---</div>
+      </div>
+      <div class="boss-chat-container" id="boss-chat">
+        <!-- Chat messages will be rendered here -->
+      </div>
+      <div class="boss-input-section">
+        <input type="text" class="boss-message-input" id="boss-message-input" placeholder="Enter your response..." autocomplete="off" autofocus>
+      </div>
+    </div>
   </div>
 
   <h1>HACKING THE MAINFRAME</h1>
@@ -275,6 +480,10 @@
   <script>
     let lastScores = { red: 0, blue: 0 };
     let gameStarted = false;
+    let bossPhase = false;
+    let bossPlayer = null;
+    let localChatHistory = []; // Local chat for instant display
+    let waitingForAI = false;
     let dotCount = 0;
 
     // Track previous leaderboard order per team (stores player ids in order)
@@ -288,22 +497,124 @@
       document.getElementById('standby-dots').textContent = dots;
     }
 
-    // Check game state and show/hide standby screen
+    // Check game state and show/hide standby/boss screens
     async function checkGameState() {
       try {
         const response = await fetch('/api/game');
         const data = await response.json();
         gameStarted = data.started;
+        bossPhase = data.bossPhase;
+        bossPlayer = data.bossPlayer;
 
         const standbyScreen = document.getElementById('standby-screen');
-        if (gameStarted) {
+        const bossScreen = document.getElementById('boss-screen');
+
+        if (bossPhase) {
+          // Show boss phase screen
           standbyScreen.classList.add('hidden');
+          bossScreen.classList.remove('hidden');
+          updateBossScreen(data);
+        } else if (gameStarted) {
+          // Show scoreboard
+          standbyScreen.classList.add('hidden');
+          bossScreen.classList.add('hidden');
+          // Clear local chat if we exited boss phase
+          if (localChatHistory.length > 0) {
+            localChatHistory = [];
+            waitingForAI = false;
+          }
         } else {
+          // Show standby screen
           standbyScreen.classList.remove('hidden');
+          bossScreen.classList.add('hidden');
+          // Clear local chat if game stopped
+          if (localChatHistory.length > 0) {
+            localChatHistory = [];
+            waitingForAI = false;
+          }
         }
       } catch (err) {
         console.error('Failed to check game state:', err);
       }
+    }
+
+    // Update boss phase screen
+    function updateBossScreen(data) {
+      // Update player name
+      const playerNameEl = document.getElementById('boss-player-name');
+      if (data.bossPlayer) {
+        playerNameEl.textContent = data.bossPlayer.hackerName;
+      }
+
+      // Sync server chat with local chat
+      const serverChat = data.bossChatHistory || [];
+      // Sync if server has more messages OR if server was reset (fewer messages)
+      if (serverChat.length !== localChatHistory.length ||
+          (serverChat.length === 0 && localChatHistory.length > 0)) {
+        localChatHistory = [...serverChat];
+        waitingForAI = false;
+        renderChat();
+      }
+    }
+
+    // Render the chat messages
+    function renderChat() {
+      const chatContainer = document.getElementById('boss-chat');
+
+      let html = localChatHistory.map(msg => `
+        <div class="chat-message ${msg.role}">
+          <div class="sender">${msg.role === 'ai' ? 'ROGUE AI' : bossPlayer?.hackerName || 'HACKER'}</div>
+          <div class="content">${escapeHtml(msg.content)}</div>
+        </div>
+      `).join('');
+
+      // Add typing indicator if waiting for AI
+      if (waitingForAI) {
+        html += `<div class="typing-indicator">ROGUE AI is processing<span>...</span></div>`;
+      }
+
+      chatContainer.innerHTML = html;
+
+      // Auto-scroll to bottom
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // Send message to the AI
+    async function sendBossMessage() {
+      const input = document.getElementById('boss-message-input');
+      const message = input.value.trim();
+
+      if (!message || waitingForAI) return;
+
+      // Clear input immediately
+      input.value = '';
+
+      // Add user message to local chat immediately
+      localChatHistory.push({ role: 'user', content: message });
+      waitingForAI = true;
+      renderChat();
+
+      // Send to server
+      try {
+        const response = await fetch('/api/boss/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Update with server's full chat history (includes AI response)
+          localChatHistory = data.chatHistory;
+        }
+      } catch (err) {
+        console.error('Failed to send message:', err);
+      }
+
+      waitingForAI = false;
+      renderChat();
+      input.focus();
     }
 
     // Stable sort: only move up if you have STRICTLY more points than the person above
@@ -423,6 +734,13 @@
       checkGameState();
       updateScoreboard();
     }, 2000);
+
+    // Handle Enter key on boss input
+    document.getElementById('boss-message-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendBossMessage();
+      }
+    });
   </script>
 </body>
 </html>

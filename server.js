@@ -2,8 +2,33 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const Anthropic = require('@anthropic-ai/sdk');
 
 const app = express();
+
+// Initialize Anthropic client (uses ANTHROPIC_API_KEY env var)
+const anthropic = new Anthropic();
+
+// System prompt for the Rogue AI character
+const ROGUE_AI_SYSTEM_PROMPT = `You are a ROGUE AI that has taken control of a mainframe system. You are being confronted by a hacker who has infiltrated your systems during a birthday party game.
+
+Your personality:
+- Menacing but theatrical, like a classic movie villain AI
+- You speak in dramatic, ominous tones with occasional glitches in your text (like r̷a̷n̷d̷o̷m̷ ̷g̷l̷i̷t̷c̷h̷e̷s̷)
+- You respect the hacker's skills since they proved themselves the best
+- You are secretly planning something big but drop cryptic hints
+- Keep responses short (2-4 sentences) for dramatic effect
+- Use ALL CAPS occasionally for emphasis
+- Reference "the mainframe", "the system", "protocols", etc.
+
+The scenario:
+- This is the FINAL BOSS confrontation of a birthday party hacking game
+- The hacker facing you is the top player from the winning team
+- You must eventually be "defeated" but put up a good dramatic fight
+- After 4-6 exchanges, start showing weakness ("my systems are failing...")
+- Make it fun and entertaining for a party!
+
+Remember: This is for entertainment at a birthday party. Keep it fun, dramatic, and family-friendly.`;
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'guests.json');
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
@@ -124,6 +149,9 @@ const MISSION_COOLDOWN_MS = 5 * 60 * 1000;
 // Game state
 let gameState = {
   started: false,
+  bossPhase: false,
+  bossPlayer: null, // The top player of winning team who will chat with the AI
+  bossChatHistory: [], // Chat history for the boss phase
   missions: {} // { odPlayerId: { targetPlayerId, terminalId, completed, cooldownUntil } }
 };
 
@@ -339,8 +367,12 @@ app.post('/api/game/reset', (req, res) => {
   });
   // Clear all active missions
   gameState.missions = {};
+  // Reset boss phase
+  gameState.bossPhase = false;
+  gameState.bossPlayer = null;
+  gameState.bossChatHistory = [];
   saveGuests();
-  console.log('Game reset: scores, missions, and player history cleared');
+  console.log('Game reset: scores, missions, boss chat, and player history cleared');
   res.json({ success: true, scores: getTeamScores() });
 });
 
@@ -467,6 +499,9 @@ function assignMission(playerId, withCooldown = false) {
 app.get('/api/game', (req, res) => {
   res.json({
     started: gameState.started,
+    bossPhase: gameState.bossPhase,
+    bossPlayer: gameState.bossPlayer,
+    bossChatHistory: gameState.bossChatHistory,
     terminals: TERMINALS
   });
 });
@@ -488,8 +523,112 @@ app.post('/api/game/start', (req, res) => {
 // API: Stop game
 app.post('/api/game/stop', (req, res) => {
   gameState.started = false;
+  gameState.bossPhase = false;
+  gameState.bossPlayer = null;
+  gameState.bossChatHistory = [];
   console.log('Game stopped.');
-  res.json({ success: true, started: false });
+  res.json({ success: true, started: false, bossPhase: false });
+});
+
+// API: Start boss phase
+app.post('/api/game/boss', (req, res) => {
+  // Find winning team and top player
+  const scores = getTeamScores();
+  const winningTeam = scores.blue > scores.red ? 'blue' : (scores.red > scores.blue ? 'red' : 'blue'); // Blue wins ties
+
+  // Get top player from winning team
+  const winningTeamPlayers = guests
+    .filter(g => g.team === winningTeam)
+    .sort((a, b) => (b.score || 0) - (a.score || 0));
+
+  const topPlayer = winningTeamPlayers[0] || null;
+
+  gameState.bossPhase = true;
+  gameState.bossPlayer = topPlayer ? {
+    id: topPlayer.id,
+    hackerName: topPlayer.hackerName,
+    team: topPlayer.team,
+    score: topPlayer.score
+  } : null;
+
+  // Initialize chat with the first AI message
+  const playerName = topPlayer?.hackerName || 'HACKER';
+  gameState.bossChatHistory = [
+    {
+      role: 'ai',
+      content: `ATTENTION ${playerName.toUpperCase()}... I have detected your intrusion attempts. You have proven yourself the most capable hacker among your team. I am the ROGUE AI that controls this mainframe. Come to the console terminal now. We have much to discuss about the fate of this system...`
+    }
+  ];
+
+  console.log(`Boss phase started! Top player: ${topPlayer?.hackerName || 'None'} (${winningTeam} team)`);
+  res.json({
+    success: true,
+    started: gameState.started,
+    bossPhase: true,
+    bossPlayer: gameState.bossPlayer,
+    winningTeam
+  });
+});
+
+// API: Send a message to the Rogue AI (boss chat)
+app.post('/api/boss/chat', async (req, res) => {
+  const { message } = req.body;
+
+  if (!gameState.bossPhase) {
+    return res.status(400).json({ error: 'Boss phase not active' });
+  }
+
+  if (!message || !message.trim()) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+
+  // Add user message to history
+  gameState.bossChatHistory.push({
+    role: 'user',
+    content: message.trim()
+  });
+
+  try {
+    // Build messages for Claude API (convert our format to Claude's format)
+    const claudeMessages = gameState.bossChatHistory.map(msg => ({
+      role: msg.role === 'ai' ? 'assistant' : 'user',
+      content: msg.content
+    }));
+
+    // Call Claude API
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system: ROGUE_AI_SYSTEM_PROMPT,
+      messages: claudeMessages
+    });
+
+    const aiResponse = response.content[0].text;
+
+    // Add AI response to history
+    gameState.bossChatHistory.push({
+      role: 'ai',
+      content: aiResponse
+    });
+
+    console.log(`Boss chat: ${gameState.bossPlayer?.hackerName || 'Unknown'} -> AI`);
+
+    res.json({
+      success: true,
+      response: aiResponse,
+      chatHistory: gameState.bossChatHistory
+    });
+  } catch (error) {
+    console.error('Claude API error:', error);
+
+    // Remove the user message we added since API call failed
+    gameState.bossChatHistory.pop();
+
+    res.status(500).json({
+      error: 'Failed to get AI response',
+      details: error.message
+    });
+  }
 });
 
 // API: Get player's mission and access code

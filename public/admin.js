@@ -3,28 +3,37 @@ async function loadGameState() {
   try {
     const response = await fetch('/api/game');
     const data = await response.json();
-    updateGameUI(data.started);
+    updateGameUI(data.started, data.bossPhase);
   } catch (error) {
     console.error('Failed to load game state:', error);
   }
 }
 
 // Update game UI based on state
-function updateGameUI(isRunning) {
+function updateGameUI(isRunning, bossPhase = false) {
   const statusEl = document.getElementById('game-status');
   const startBtn = document.getElementById('start-game-btn');
   const stopBtn = document.getElementById('stop-game-btn');
+  const bossBtn = document.getElementById('boss-phase-btn');
 
-  if (isRunning) {
+  if (bossPhase) {
+    statusEl.textContent = 'GAME: BOSS PHASE';
+    statusEl.className = 'game-status boss';
+    startBtn.classList.add('hidden');
+    stopBtn.classList.remove('hidden');
+    bossBtn.classList.add('hidden');
+  } else if (isRunning) {
     statusEl.textContent = 'GAME: RUNNING';
     statusEl.className = 'game-status running';
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
+    bossBtn.classList.remove('hidden');
   } else {
     statusEl.textContent = 'GAME: STOPPED';
     statusEl.className = 'game-status stopped';
     startBtn.classList.remove('hidden');
     stopBtn.classList.add('hidden');
+    bossBtn.classList.add('hidden');
   }
 }
 
@@ -46,10 +55,23 @@ async function stopGame() {
   try {
     const response = await fetch('/api/game/stop', { method: 'POST' });
     const data = await response.json();
-    updateGameUI(data.started);
+    updateGameUI(data.started, data.bossPhase);
     console.log('Game stopped.');
   } catch (error) {
     console.error('Failed to stop game:', error);
+  }
+}
+
+// Start boss phase
+async function startBossPhase() {
+  if (!confirm('Start the BOSS PHASE? The scoreboard will show the Rogue AI terminal.')) return;
+  try {
+    const response = await fetch('/api/game/boss', { method: 'POST' });
+    const data = await response.json();
+    updateGameUI(data.started, data.bossPhase);
+    console.log('Boss phase started!');
+  } catch (error) {
+    console.error('Failed to start boss phase:', error);
   }
 }
 
