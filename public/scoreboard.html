@@ -222,6 +222,41 @@
 
   <script>
     let lastScores = { red: 0, blue: 0 };
+    // Track previous leaderboard order per team (stores player ids in order)
+    let prevBlueOrder = [];
+    let prevRedOrder = [];
+
+    // Stable sort: only move up if you have STRICTLY more points than the person above
+    function stableSortPlayers(players, prevOrder) {
+      // First, sort by score descending
+      const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+
+      // Apply stability: if scores are equal, preserve previous order
+      sorted.sort((a, b) => {
+        const scoreA = a.score || 0;
+        const scoreB = b.score || 0;
+
+        // If scores are different, higher score wins
+        if (scoreA !== scoreB) {
+          return scoreB - scoreA;
+        }
+
+        // Scores are equal - preserve previous order (lower index = higher rank)
+        const prevIndexA = prevOrder.indexOf(a.id);
+        const prevIndexB = prevOrder.indexOf(b.id);
+
+        // If neither was in previous order, maintain current order
+        if (prevIndexA === -1 && prevIndexB === -1) return 0;
+        // If only A was in previous order, A stays ahead
+        if (prevIndexB === -1) return -1;
+        // If only B was in previous order, B stays ahead
+        if (prevIndexA === -1) return 1;
+        // Both were in previous order - maintain that order
+        return prevIndexA - prevIndexB;
+      });
+
+      return sorted;
+    }
 
     async function updateScoreboard() {
       try {
@@ -243,9 +278,16 @@
         document.getElementById('blue-percent').textContent = bluePercent + '%';
         document.getElementById('red-percent').textContent = redPercent + '%';
 
-        // Get top 3 players per team
-        const bluePlayers = guests.filter(g => g.team === 'blue').sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 3);
-        const redPlayers = guests.filter(g => g.team === 'red').sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 3);
+        // Get top 3 players per team with stable sorting
+        const blueFiltered = guests.filter(g => g.team === 'blue');
+        const redFiltered = guests.filter(g => g.team === 'red');
+
+        const bluePlayers = stableSortPlayers(blueFiltered, prevBlueOrder).slice(0, 3);
+        const redPlayers = stableSortPlayers(redFiltered, prevRedOrder).slice(0, 3);
+
+        // Update previous order for next refresh
+        prevBlueOrder = stableSortPlayers(blueFiltered, prevBlueOrder).map(p => p.id);
+        prevRedOrder = stableSortPlayers(redFiltered, prevRedOrder).map(p => p.id);
 
         // Render top players
         document.getElementById('blue-top').innerHTML = renderTopPlayers(bluePlayers);
