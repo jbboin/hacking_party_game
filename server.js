@@ -312,7 +312,7 @@ app.post('/api/scores/rate', (req, res) => {
   res.json({ success: true, scores: getTeamScores() });
 });
 
-// API: Reset all scores
+// API: Reset all scores (legacy)
 app.post('/api/scores/reset', (req, res) => {
   guests.forEach(g => {
     g.score = 0;
@@ -320,6 +320,23 @@ app.post('/api/scores/reset', (req, res) => {
   });
   saveGuests();
   console.log('All scores reset');
+  res.json({ success: true, scores: getTeamScores() });
+});
+
+// API: Reset game (scores and all player history)
+app.post('/api/game/reset', (req, res) => {
+  guests.forEach(g => {
+    g.score = 0;
+    g.percent = 0;
+    g.visitedTerminals = [];
+    g.usedPoses = [];
+    g.answeredTrivia = [];
+    g.hackedPlayers = [];
+  });
+  // Clear all active missions
+  gameState.missions = {};
+  saveGuests();
+  console.log('Game reset: scores, missions, and player history cleared');
   res.json({ success: true, scores: getTeamScores() });
 });
 
@@ -804,6 +821,54 @@ app.post('/api/trivia/answer', (req, res) => {
     success: true,
     message: 'Correct! Mission complete.',
     newMission: newMission,
+    scores: getTeamScores()
+  });
+});
+
+// API: Hack enemy team (enter their access code to steal a point)
+app.post('/api/hack', (req, res) => {
+  const { playerId, code } = req.body;
+
+  if (!code || !code.trim()) {
+    return res.json({ success: false, error: 'Enter an access code!' });
+  }
+
+  const player = guests.find(g => g.id === playerId);
+  if (!player) {
+    return res.status(404).json({ error: 'Player not found' });
+  }
+
+  // Find the player with this access code
+  const targetPlayer = guests.find(g => g.accessCode.toUpperCase() === code.toUpperCase());
+  if (!targetPlayer) {
+    return res.json({ success: false, error: 'Invalid access code!' });
+  }
+
+  // Check if it's from the enemy team (not the same team)
+  if (targetPlayer.team === player.team) {
+    return res.json({ success: false, error: 'That code belongs to your own team!' });
+  }
+
+  // Check if this player has already hacked this target
+  if (!player.hackedPlayers) {
+    player.hackedPlayers = [];
+  }
+
+  if (player.hackedPlayers.includes(targetPlayer.id)) {
+    return res.json({ success: false, error: `Already hacked ${targetPlayer.hackerName}!` });
+  }
+
+  // Success! Award point and track the hacked player
+  player.hackedPlayers.push(targetPlayer.id);
+  player.score = (player.score || 0) + 1;
+  player.percent = (player.percent || 0) + settings.rate;
+  saveGuests();
+
+  console.log(`${player.hackerName} hacked ${targetPlayer.hackerName}'s access code! +1 point`);
+
+  res.json({
+    success: true,
+    hackedPlayer: targetPlayer.hackerName,
     scores: getTeamScores()
   });
 });

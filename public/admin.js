@@ -81,15 +81,15 @@ async function setRate() {
   }
 }
 
-// Reset all scores
-async function resetScores() {
-  if (!confirm('Reset ALL player scores to 0?')) return;
+// Reset game (scores and player history)
+async function resetGame() {
+  if (!confirm('Reset ALL player scores, missions, and hack history?')) return;
   try {
-    await fetch('/api/scores/reset', { method: 'POST' });
+    await fetch('/api/game/reset', { method: 'POST' });
     loadScores();
     loadGuests();
   } catch (error) {
-    console.error('Failed to reset scores:', error);
+    console.error('Failed to reset game:', error);
   }
 }
 

@@ -247,6 +247,57 @@ async function submitTrivia() {
   }
 }
 
+// Submit hack attempt against enemy team
+async function submitHack() {
+  const codeInput = document.getElementById('hack-code-input');
+  const code = codeInput.value.trim().toUpperCase();
+  const playerId = localStorage.getItem('hackerId');
+  const messageEl = document.getElementById('hack-message');
+
+  if (!code) {
+    messageEl.textContent = 'Enter an access code!';
+    messageEl.classList.remove('hidden', 'success');
+    messageEl.classList.add('error');
+    return;
+  }
+
+  const submitBtn = document.getElementById('hack-submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'HACKING...';
+  messageEl.classList.add('hidden');
+
+  try {
+    const response = await fetch('/api/hack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId: parseInt(playerId), code })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      codeInput.value = '';
+      messageEl.textContent = `ACCESS BREACHED! +1 point from ${data.hackedPlayer}`;
+      messageEl.classList.remove('hidden', 'error');
+      messageEl.classList.add('success');
+      // Refresh player data to show new score
+      fetchPlayerData(playerId);
+    } else {
+      messageEl.textContent = data.error || 'Hack failed!';
+      messageEl.classList.remove('hidden', 'success');
+      messageEl.classList.add('error');
+    }
+  } catch (err) {
+    console.error('Hack failed:', err);
+    messageEl.textContent = 'Connection error!';
+    messageEl.classList.remove('hidden', 'success');
+    messageEl.classList.add('error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'HACK';
+  }
+}
+
 // Make functions globally available
 window.toggleAccessCode = toggleAccessCode;
 window.revealMission = revealMission;
@@ -254,6 +305,7 @@ window.uploadPhoto = uploadPhoto;
 window.previewPhoto = previewPhoto;
 window.verifyPhoto = verifyPhoto;
 window.submitTrivia = submitTrivia;
+window.submitHack = submitHack;
 
 // Check if already registered and verify with server
 async function checkExistingSession() {
@@ -383,7 +435,10 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
 function showWelcomeScreen(hackerName, team) {
   document.getElementById('register-screen').classList.add('hidden');
   document.getElementById('welcome-screen').classList.remove('hidden');
-  document.getElementById('display-name').textContent = hackerName;
+
+  const displayName = document.getElementById('display-name');
+  displayName.textContent = hackerName;
+  displayName.className = team === 'red' ? 'team-red-text' : 'team-blue-text';
 
   const badge = document.getElementById('team-badge');
   if (team === 'red') {
@@ -559,6 +614,20 @@ async function fetchPlayerData(playerId) {
       lastMissionId = null;
       localStorage.removeItem('lastMissionId');
       localStorage.removeItem('missionRevealed');
+    }
+
+    // Show/hide hack box based on game state and set enemy team color
+    const hackBox = document.getElementById('hack-box');
+    const hackLabel = document.getElementById('hack-label');
+    if (data.gameStarted) {
+      hackBox.classList.remove('hidden');
+      // Set the enemy team color
+      const enemyTeam = data.team === 'red' ? 'blue' : 'red';
+      hackBox.classList.remove('hack-red', 'hack-blue');
+      hackBox.classList.add(`hack-${enemyTeam}`);
+      hackLabel.textContent = `HACK ${enemyTeam.toUpperCase()} TEAM`;
+    } else {
+      hackBox.classList.add('hidden');
     }
 
   } catch (err) {

@@ -83,6 +83,17 @@
           </div>
         </div>
 
+        <!-- Hack Enemy Team -->
+        <div id="hack-box" class="hack-box hidden">
+          <p id="hack-label" class="hack-label">HACK ENEMY TEAM</p>
+          <p class="hack-hint">Enter an enemy's access code to earn a point</p>
+          <div class="hack-input-row">
+            <input type="text" id="hack-code-input" placeholder="ACCESS CODE" autocomplete="off" maxlength="20">
+            <button type="button" id="hack-submit-btn" class="btn-hack-submit" onclick="submitHack()">HACK</button>
+          </div>
+          <p id="hack-message" class="hack-message hidden"></p>
+        </div>
+
         <!-- Verification Requests -->
         <div id="verifications-box" class="verifications-box hidden">
           <p class="verifications-label">VERIFY PHOTOS</p>

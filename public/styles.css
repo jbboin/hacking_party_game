@@ -306,9 +306,8 @@ input[type="text"]::placeholder {
   margin-bottom: 1.5rem;
 }
 
-.welcome-text span {
-  color: var(--white);
-  text-shadow: 0 0 10px var(--green-glow);
+#display-name {
+  font-weight: bold;
 }
 
 .status-box {
@@ -711,7 +710,7 @@ input[type="text"]::placeholder {
 
 .tap-hint {
   font-size: 0.7rem;
-  color: var(--gray);
+  color: #888;
 }
 
 .access-code {
@@ -744,7 +743,7 @@ input[type="text"]::placeholder {
 
 .access-code-hint {
   font-size: 0.7rem;
-  color: var(--gray);
+  color: #888;
   margin-top: 0.5rem;
 }
 
@@ -1207,6 +1206,138 @@ input[type="text"]::placeholder {
 @keyframes pulse-text {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
+}
+
+/* Hack Enemy Box */
+.hack-box {
+  border-radius: 10px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+}
+
+.hack-box.hack-red {
+  background: linear-gradient(135deg, rgba(255, 68, 68, 0.1), rgba(200, 50, 50, 0.1));
+  border: 2px solid var(--team-red);
+}
+
+.hack-box.hack-blue {
+  background: linear-gradient(135deg, rgba(68, 136, 255, 0.1), rgba(50, 100, 200, 0.1));
+  border: 2px solid var(--team-blue);
+}
+
+.hack-label {
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.1rem;
+}
+
+.hack-box.hack-red .hack-label {
+  color: var(--team-red);
+}
+
+.hack-box.hack-blue .hack-label {
+  color: var(--team-blue);
+}
+
+.hack-hint {
+  font-size: 0.8rem;
+  color: #888;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.hack-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.hack-input-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 5px;
+  padding: 0.75rem;
+  color: var(--white);
+  font-family: inherit;
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+
+.hack-box.hack-red .hack-input-row input[type="text"] {
+  border: 2px solid var(--team-red);
+}
+
+.hack-box.hack-blue .hack-input-row input[type="text"] {
+  border: 2px solid var(--team-blue);
+}
+
+.hack-box.hack-red .hack-input-row input[type="text"]:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+}
+
+.hack-box.hack-blue .hack-input-row input[type="text"]:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(68, 136, 255, 0.3);
+}
+
+.hack-input-row input[type="text"]::placeholder {
+  color: var(--gray);
+  text-transform: uppercase;
+}
+
+.btn-hack-submit {
+  background: transparent;
+  border-radius: 5px;
+  padding: 0.75rem 1rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.hack-box.hack-red .btn-hack-submit {
+  border: 2px solid var(--team-red);
+  color: var(--team-red);
+}
+
+.hack-box.hack-blue .btn-hack-submit {
+  border: 2px solid var(--team-blue);
+  color: var(--team-blue);
+}
+
+.hack-box.hack-red .btn-hack-submit:hover:not(:disabled) {
+  background: var(--team-red);
+  color: var(--white);
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.4);
+}
+
+.hack-box.hack-blue .btn-hack-submit:hover:not(:disabled) {
+  background: var(--team-blue);
+  color: var(--white);
+  box-shadow: 0 0 20px rgba(68, 136, 255, 0.4);
+}
+
+.btn-hack-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hack-message {
+  text-align: center;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.hack-message.success {
+  color: var(--green);
+}
+
+.hack-message.error {
+  color: var(--team-red);
 }
 
 /* Player Score Display */
