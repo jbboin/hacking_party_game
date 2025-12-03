@@ -13,6 +13,18 @@ const terminalNames = {
   'nutrient-bank': 'NUTRIENT-BANK'
 };
 
+// Hacker name suggestions for the uninspired
+const hackerNames = [
+  'ZeroDay','Ph4ntom','CipherGhost','NullByt3','DarkProxy','Shad0wRoot','ByteStorm',
+  'NetWraith','Crypt0Vex','SilentPing','BlackHat9','Gh0stShell','DataReaper','NeonViru5',
+  'QuantumFade','RoguePacket','BinaryWraith','Ech0Void','MalwareMax','FirewallBreaker',
+  'DeadPix3l','SynapseHack','Tr0jan','CodeNinja','DarkFirewall','StackOverlord','R00tKit',
+  'CyberSpectre','HexShadow','NetGl1tch','Anon404','VoidRunner','CrashDaemon','B1tPhantom',
+  'LogicBomb','SilkThread','IceBreaker','GhostProtocol','DarkMatt3r','ScriptKiddy',
+  'ByteBandit','TerminalFr0st','RedPill','SpoofMaster','W0rmHole','CachePoison',
+  'DigitalDrift','OmegaHash','Zer0Cool','AcidBurn'
+];
+
 // Track mission state to detect new missions
 let lastMissionId = localStorage.getItem('lastMissionId') || null;
 
@@ -272,6 +284,34 @@ async function checkExistingSession() {
 }
 
 checkExistingSession();
+
+// Randomize name button
+document.getElementById('randomize-btn').addEventListener('click', async () => {
+  try {
+    // Fetch existing players to avoid duplicates
+    const response = await fetch('/api/guests');
+    const guests = await response.json();
+    const takenNames = guests.map(g => g.hackerName.toLowerCase());
+
+    // Filter out taken names
+    const availableNames = hackerNames.filter(name =>
+      !takenNames.includes(name.toLowerCase())
+    );
+
+    if (availableNames.length === 0) {
+      // All names taken, just pick any
+      const randomName = hackerNames[Math.floor(Math.random() * hackerNames.length)];
+      document.getElementById('hacker-name').value = randomName;
+    } else {
+      const randomName = availableNames[Math.floor(Math.random() * availableNames.length)];
+      document.getElementById('hacker-name').value = randomName;
+    }
+  } catch (err) {
+    // Fallback to any name if fetch fails
+    const randomName = hackerNames[Math.floor(Math.random() * hackerNames.length)];
+    document.getElementById('hacker-name').value = randomName;
+  }
+});
 
 // Team selection
 document.querySelectorAll('.btn-team').forEach(btn => {

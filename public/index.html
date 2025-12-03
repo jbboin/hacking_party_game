@@ -20,14 +20,17 @@
         <p class="typing">Initiating secure connection...</p>
         <p class="prompt">Enter your hacker alias:</p>
         <form id="register-form">
-          <input
-            type="text"
-            id="hacker-name"
-            placeholder="_"
-            autocomplete="off"
-            maxlength="30"
-            required
-          >
+          <div class="name-input-row">
+            <input
+              type="text"
+              id="hacker-name"
+              placeholder="_"
+              autocomplete="off"
+              maxlength="30"
+              required
+            >
+            <button type="button" id="randomize-btn" class="btn-randomize" title="Generate random name">RND</button>
+          </div>
           <p class="prompt">Choose your path:</p>
           <div class="team-select">
             <button type="button" class="btn-team btn-blue" data-team="blue">

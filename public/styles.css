@@ -117,6 +117,37 @@ body {
   gap: 1rem;
 }
 
+.name-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.name-input-row input[type="text"] {
+  flex: 1;
+}
+
+.btn-randomize {
+  background: transparent;
+  border: 2px solid var(--green-dim);
+  color: var(--green-dim);
+  width: 48px;
+  font-size: 1.2rem;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
+.btn-randomize:hover {
+  border-color: var(--green);
+  color: var(--green);
+  box-shadow: 0 0 15px var(--green-glow);
+}
+
+.btn-randomize:active {
+  transform: scale(0.95);
+}
+
 input[type="text"] {
   background: #0d0d0d;
   border: 2px solid var(--green-dim);
