@@ -302,6 +302,7 @@
       display: flex;
       flex-direction: column;
       gap: 1rem;
+      scroll-behavior: smooth;
     }
 
     .chat-message {
@@ -361,7 +362,7 @@
     }
 
     .typing-indicator {
-      color: #ff9900;
+      color: #999;
       font-style: italic;
       padding: 0.5rem 1rem;
     }
@@ -406,8 +407,8 @@
 
     .typing-indicator {
       align-self: flex-start;
-      background: rgba(255, 153, 0, 0.1);
-      border: 1px dashed #ff9900;
+      background: rgba(150, 150, 150, 0.15);
+      border: 1px dashed #888;
       border-radius: 8px;
       padding: 0.5rem 1rem;
       margin: 0;

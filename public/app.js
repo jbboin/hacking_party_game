@@ -736,19 +736,26 @@ async function checkBossPhase(playerId) {
 }
 
 // Render boss chat messages
+let lastRenderedMessageCount = 0;
+
 function renderBossChat() {
   const container = document.getElementById('boss-chat-container');
+  const previousCount = lastRenderedMessageCount;
+  lastRenderedMessageCount = bossChatHistory.length;
 
-  let html = bossChatHistory.map(msg => `
-    <div class="boss-chat-message ${msg.role}">
+  let html = bossChatHistory.map((msg, index) => {
+    const isNew = index >= previousCount;
+    return `
+    <div class="boss-chat-message ${msg.role}${isNew ? ' new-message' : ''}">
       <div class="sender">${msg.role === 'ai' ? 'ROGUE AI' : (msg.senderName || 'HACKER')}</div>
       <div class="content">${escapeHtml(msg.content)}</div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   // Add typing indicator if AI is processing (inline with chat messages)
   if (bossAiProcessing) {
-    html += `<div class="boss-typing-indicator">ROGUE AI is processing<span>...</span></div>`;
+    html += `<div class="boss-typing-indicator new-message">ROGUE AI is processing<span>...</span></div>`;
   }
 
   container.innerHTML = html;
