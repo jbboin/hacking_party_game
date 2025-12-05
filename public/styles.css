@@ -1523,10 +1523,14 @@ input[type="text"]::placeholder {
 }
 
 .boss-chat-message.user {
-  background: rgba(0, 255, 0, 0.15);
+  background: rgba(0, 255, 0, 0.1);
   border: 1px solid #00ff00;
   color: #00ff00;
   align-self: flex-end;
+}
+
+.boss-chat-message.user .sender {
+  color: #00ff00;
 }
 
 .boss-chat-message .sender {
@@ -1536,7 +1540,22 @@ input[type="text"]::placeholder {
 }
 
 .boss-chat-message.ai .sender { color: #ff9900; }
-.boss-chat-message.user .sender { color: #00ff00; }
+
+/* System messages (disconnect notifications) */
+.boss-chat-message.system {
+  background: rgba(100, 100, 100, 0.3);
+  border: 1px solid #666;
+  color: #999;
+  align-self: center;
+  max-width: 90%;
+  text-align: center;
+  font-style: italic;
+  padding: 0.4rem 1rem;
+}
+
+.boss-chat-message.system .system-content {
+  font-size: 1rem;
+}
 
 .boss-input-container {
   display: flex;

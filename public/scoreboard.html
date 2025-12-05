@@ -335,6 +335,21 @@
     .chat-message.ai .sender { color: #ff9900; }
     .chat-message.user .sender { color: #00ff00; }
 
+    .chat-message.system {
+      background: rgba(100, 100, 100, 0.3);
+      border: 1px solid #666;
+      color: #999;
+      align-self: center;
+      max-width: 90%;
+      text-align: center;
+      font-style: italic;
+      padding: 0.4rem 1rem;
+    }
+
+    .chat-message.system .system-content {
+      font-size: 1rem;
+    }
+
     .boss-player-info {
       text-align: center;
       padding: 1rem;
@@ -546,12 +561,32 @@
     function renderChat() {
       const chatContainer = document.getElementById('boss-chat');
 
-      let html = localChatHistory.map(msg => `
-        <div class="chat-message ${msg.role}">
-          <div class="sender">${msg.role === 'ai' ? 'ROGUE AI' : (msg.senderName || 'HACKER')}</div>
+      let html = localChatHistory.map(msg => {
+        // System messages (disconnect notifications)
+        if (msg.role === 'system') {
+          return `
+          <div class="chat-message system">
+            <div class="system-content">${escapeHtml(msg.content)}</div>
+          </div>
+        `;
+        }
+        // User messages - green, right-aligned
+        if (msg.role === 'user') {
+          return `
+          <div class="chat-message user">
+            <div class="sender">${escapeHtml(msg.senderName || 'HACKER')}</div>
+            <div class="content">${escapeHtml(msg.content)}</div>
+          </div>
+        `;
+        }
+        // AI messages
+        return `
+        <div class="chat-message ai">
+          <div class="sender">ROGUE AI</div>
           <div class="content">${escapeHtml(msg.content)}</div>
         </div>
-      `).join('');
+      `;
+      }).join('');
 
       // Add typing indicator if waiting for AI
       if (waitingForAI) {

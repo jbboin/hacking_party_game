@@ -690,7 +690,19 @@ async function checkBossPhase(playerId) {
       // Check if player is on winning team
       const isWinningTeam = playerTeam === bossWinningTeam;
 
-      if (isWinningTeam) {
+      // Check if player has been disconnected by the AI
+      let playerDisconnected = false;
+      if (playerId && isWinningTeam) {
+        try {
+          const playerResponse = await fetch(`/api/player/${playerId}`);
+          const playerData = await playerResponse.json();
+          playerDisconnected = playerData.disconnected || false;
+        } catch (e) {
+          console.error('Failed to check player disconnect status:', e);
+        }
+      }
+
+      if (isWinningTeam && !playerDisconnected) {
         // Winning team: Show boss phase chat
         disconnectedBox.classList.add('hidden');
         bossBox.classList.remove('hidden');
@@ -703,7 +715,7 @@ async function checkBossPhase(playerId) {
         document.getElementById('waiting-box')?.classList.add('hidden');
         document.getElementById('verifications-box')?.classList.add('hidden');
       } else {
-        // Losing team: Show disconnected overlay inside terminal
+        // Losing team OR disconnected by AI: Show disconnected overlay inside terminal
         disconnectedBox.classList.remove('hidden');
         bossBox.classList.add('hidden');
 
@@ -753,9 +765,30 @@ function renderBossChat() {
 
   let html = bossChatHistory.map((msg, index) => {
     const isNew = index >= previousCount;
+
+    // System messages (disconnect notifications) get special styling
+    if (msg.role === 'system') {
+      return `
+      <div class="boss-chat-message system${isNew ? ' new-message' : ''}">
+        <div class="system-content">${escapeHtml(msg.content)}</div>
+      </div>
+    `;
+    }
+
+    // User messages - green, right-aligned
+    if (msg.role === 'user') {
+      return `
+      <div class="boss-chat-message user${isNew ? ' new-message' : ''}">
+        <div class="sender">${escapeHtml(msg.senderName || 'HACKER')}</div>
+        <div class="content">${escapeHtml(msg.content)}</div>
+      </div>
+    `;
+    }
+
+    // AI messages
     return `
-    <div class="boss-chat-message ${msg.role}${isNew ? ' new-message' : ''}">
-      <div class="sender">${msg.role === 'ai' ? 'ROGUE AI' : (msg.senderName || 'HACKER')}</div>
+    <div class="boss-chat-message ai${isNew ? ' new-message' : ''}">
+      <div class="sender">ROGUE AI</div>
       <div class="content">${escapeHtml(msg.content)}</div>
     </div>
   `;

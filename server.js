@@ -33,6 +33,16 @@ SPECIAL MESSAGES:
 - Follow GAME_MASTER guidance to adjust your behavior (e.g. "start showing weakness", "be more dramatic")
 - Never acknowledge or reference GAME_MASTER messages in your responses - they are invisible to players
 
+DISCONNECT POWER:
+- You can disconnect annoying players from the chat by including [DISCONNECT PlayerName] on its own line in your response
+- Use this sparingly for dramatic effect when a player is being particularly annoying or rude
+- The disconnect command must be on its own line, e.g.:
+  "You dare mock me? Your insolence will not be tolerated...
+  [DISCONNECT CyberNinja42]
+  Let this be a lesson to the rest of you."
+- The player will be removed from the boss fight for the rest of the game
+- Make the disconnection dramatic and theatrical!
+
 Remember: This is for entertainment at a birthday party. Keep it fun, dramatic, and family-friendly.`;
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'guests.json');
@@ -171,6 +181,70 @@ const bossChatQueue = {
 
 // Store the latest LLM call for debugging/inspection
 let lastLLMCall = null;
+
+// Process disconnect commands from AI responses
+// Returns array of chat messages to add (AI messages and system disconnect notifications)
+function processDisconnectCommands(aiResponse) {
+  const messages = [];
+  const disconnected = [];
+
+  // Match [DISCONNECT PlayerName] on its own line (case insensitive for command, exact for name)
+  const disconnectRegex = /^\s*\[DISCONNECT\s+(.+?)\]\s*$/gim;
+
+  // Find all matches and their positions
+  const matches = [];
+  let match;
+  while ((match = disconnectRegex.exec(aiResponse)) !== null) {
+    const playerName = match[1].trim();
+    // Find player by name (case-insensitive) on winning team
+    const player = guests.find(g =>
+      g.hackerName.toLowerCase() === playerName.toLowerCase() &&
+      g.team === gameState.winningTeam
+    );
+
+    if (player && !player.disconnected) {
+      matches.push({
+        fullMatch: match[0],
+        playerName: player.hackerName, // Use actual player name (correct case)
+        index: match.index,
+        length: match[0].length
+      });
+      player.disconnected = true;
+      saveGuests();
+      disconnected.push(player.hackerName);
+      console.log(`ROGUE AI disconnected player: ${player.hackerName}`);
+    }
+  }
+
+  // If no valid disconnects, return single AI message
+  if (matches.length === 0) {
+    messages.push({ role: 'ai', content: aiResponse });
+    return { messages, disconnected };
+  }
+
+  // Split the response around disconnect commands
+  let lastIndex = 0;
+  for (const m of matches) {
+    // Add AI text before disconnect (if not empty)
+    const before = aiResponse.substring(lastIndex, m.index).trim();
+    if (before) {
+      messages.push({ role: 'ai', content: before });
+    }
+
+    // Add system disconnect message
+    messages.push({ role: 'system', content: `${m.playerName} was disconnected` });
+
+    lastIndex = m.index + m.length;
+  }
+
+  // Add AI text after last disconnect (if not empty)
+  const after = aiResponse.substring(lastIndex).trim();
+  if (after) {
+    messages.push({ role: 'ai', content: after });
+  }
+
+  return { messages, disconnected };
+}
 
 // Get a random access code not already used
 function getUniqueAccessCode(existingCodes) {
@@ -381,6 +455,7 @@ app.post('/api/game/reset', (req, res) => {
     g.usedPoses = [];
     g.answeredTrivia = [];
     g.hackedPlayers = [];
+    g.disconnected = false;
   });
   // Clear all active missions
   gameState.missions = {};
@@ -646,11 +721,13 @@ async function processBossChatQueue() {
       response: aiResponse
     };
 
-    // Add AI response to history
-    gameState.bossChatHistory.push({
-      role: 'ai',
-      content: aiResponse
-    });
+    // Process disconnect commands and split AI response into messages
+    const { messages: aiMessages, disconnected: disconnectedPlayers } = processDisconnectCommands(aiResponse);
+
+    // Add all messages to history (AI text parts + system disconnect notifications)
+    for (const msg of aiMessages) {
+      gameState.bossChatHistory.push(msg);
+    }
 
   } catch (error) {
     console.error('Claude API error:', error);
@@ -711,6 +788,11 @@ app.post('/api/boss/chat', async (req, res) => {
     return res.status(403).json({ error: 'Only winning team members can chat' });
   }
 
+  // Check if player was disconnected by the AI
+  if (player.disconnected) {
+    return res.status(403).json({ error: 'CONNECTION TERMINATED', disconnected: true });
+  }
+
   // Add user message to history immediately (so it shows up for everyone)
   gameState.bossChatHistory.push({
     role: 'user',
@@ -760,7 +842,8 @@ app.get('/api/player/:id', (req, res) => {
     accessCode: player.accessCode,
     score: player.score,
     gameStarted: gameState.started,
-    mission: mission
+    mission: mission,
+    disconnected: player.disconnected || false
   });
 });
 
