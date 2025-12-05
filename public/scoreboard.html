@@ -432,6 +432,86 @@
     .typing-indicator.hidden {
       display: none;
     }
+
+    /* Firewall Health Bar */
+    .firewall-section {
+      width: 100%;
+      max-width: 900px;
+      margin-top: 1rem;
+    }
+
+    .firewall-container {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: rgba(255, 0, 0, 0.1);
+      border: 1px solid #ff4444;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+
+    .firewall-label {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #ff4444;
+      text-transform: uppercase;
+      letter-spacing: 0.1rem;
+      white-space: nowrap;
+    }
+
+    .firewall-bar {
+      flex: 1;
+      height: 30px;
+      background: #1a1a1a;
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .firewall-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff0000, #ff4444);
+      box-shadow: 0 0 15px rgba(255, 68, 68, 0.6);
+      transition: width 0.5s ease;
+    }
+
+    .firewall-fill.low {
+      background: linear-gradient(90deg, #880000, #ff0000);
+      animation: firewallPulse 0.5s ease-in-out infinite;
+    }
+
+    .firewall-fill.critical {
+      background: linear-gradient(90deg, #550000, #aa0000);
+      animation: firewallPulse 0.3s ease-in-out infinite;
+    }
+
+    @keyframes firewallPulse {
+      0%, 100% { box-shadow: 0 0 15px rgba(255, 68, 68, 0.6); }
+      50% { box-shadow: 0 0 25px rgba(255, 0, 0, 0.9); }
+    }
+
+    .firewall-hp {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #ff4444;
+      width: 60px;
+      text-align: center;
+    }
+
+    .firewall-hp.low {
+      color: #ff0000;
+      animation: hpBlink 0.5s ease-in-out infinite;
+    }
+
+    .firewall-hp.critical {
+      color: #ff0000;
+      animation: hpBlink 0.3s ease-in-out infinite;
+    }
+
+    @keyframes hpBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
   </style>
 </head>
 <body>
@@ -452,6 +532,16 @@
       </div>
       <div class="boss-chat-container" id="boss-chat">
         <!-- Chat messages will be rendered here -->
+      </div>
+    </div>
+    <!-- Firewall Health Bar -->
+    <div class="firewall-section">
+      <div class="firewall-container">
+        <span class="firewall-label">FIREWALL</span>
+        <div class="firewall-bar">
+          <div class="firewall-fill" id="firewall-fill"></div>
+        </div>
+        <span class="firewall-hp" id="firewall-hp">5/5</span>
       </div>
     </div>
   </div>
@@ -555,6 +645,33 @@
       // Use server's aiProcessing flag
       waitingForAI = data.aiProcessing || false;
       renderChat();
+      // Update firewall health bar
+      updateFirewallHP(data.firewallHP, data.firewallMaxHP);
+    }
+
+    // Update the firewall health bar display
+    function updateFirewallHP(hp, maxHP) {
+      const fill = document.getElementById('firewall-fill');
+      const hpText = document.getElementById('firewall-hp');
+
+      if (hp === undefined || maxHP === undefined) return;
+
+      const percent = (hp / maxHP) * 100;
+      fill.style.width = percent + '%';
+      hpText.textContent = hp + '/' + maxHP;
+
+      // Remove existing state classes
+      fill.classList.remove('low', 'critical');
+      hpText.classList.remove('low', 'critical');
+
+      // Add state classes based on HP level
+      if (hp <= 1) {
+        fill.classList.add('critical');
+        hpText.classList.add('critical');
+      } else if (hp <= 2) {
+        fill.classList.add('low');
+        hpText.classList.add('low');
+      }
     }
 
     // Render the chat messages
