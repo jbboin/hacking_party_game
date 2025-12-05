@@ -15,6 +15,7 @@ function updateGameUI(isRunning, bossPhase = false) {
   const startBtn = document.getElementById('start-game-btn');
   const stopBtn = document.getElementById('stop-game-btn');
   const bossBtn = document.getElementById('boss-phase-btn');
+  const aiGuidanceBox = document.getElementById('ai-guidance-box');
 
   if (bossPhase) {
     statusEl.textContent = 'GAME: BOSS PHASE';
@@ -22,18 +23,44 @@ function updateGameUI(isRunning, bossPhase = false) {
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     bossBtn.classList.add('hidden');
+    aiGuidanceBox.classList.remove('hidden');
   } else if (isRunning) {
     statusEl.textContent = 'GAME: RUNNING';
     statusEl.className = 'game-status running';
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     bossBtn.classList.remove('hidden');
+    aiGuidanceBox.classList.add('hidden');
   } else {
     statusEl.textContent = 'GAME: STOPPED';
     statusEl.className = 'game-status stopped';
     startBtn.classList.remove('hidden');
     stopBtn.classList.add('hidden');
     bossBtn.classList.add('hidden');
+    aiGuidanceBox.classList.add('hidden');
+  }
+}
+
+// Send AI guidance (queued for next batch, then cleared)
+async function sendAiGuidance() {
+  const input = document.getElementById('ai-guidance-input');
+  const guidance = input.value.trim();
+
+  if (!guidance) return;
+
+  try {
+    const response = await fetch('/api/boss/guidance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guidance })
+    });
+    const data = await response.json();
+    if (data.success) {
+      input.value = ''; // Clear input after sending
+      console.log('AI guidance queued:', guidance);
+    }
+  } catch (error) {
+    console.error('Failed to send AI guidance:', error);
   }
 }
 

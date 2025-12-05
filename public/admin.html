@@ -23,6 +23,15 @@
         <button id="boss-phase-btn" class="btn-game btn-boss hidden" onclick="startBossPhase()">ADVANCE TO BOSS PHASE</button>
       </div>
 
+      <!-- AI Guidance (shown during boss phase) -->
+      <div id="ai-guidance-box" class="ai-guidance-box hidden">
+        <h2 class="admin-subtitle">AI GUIDANCE</h2>
+        <div class="ai-guidance-input-row">
+          <input type="text" id="ai-guidance-input" placeholder="e.g. Start showing weakness, be more dramatic..." autocomplete="off">
+          <button type="button" onclick="sendAiGuidance()">SEND</button>
+        </div>
+      </div>
+
       <h1 class="admin-title">TEAM TOTALS</h1>
 
       <div class="score-control">

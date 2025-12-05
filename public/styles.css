@@ -462,6 +462,64 @@ input[type="text"]::placeholder {
   color: var(--red);
 }
 
+/* AI Guidance Box */
+.ai-guidance-box {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #1a0a0a 0%, #0d0d0d 100%);
+  border: 1px solid var(--red);
+  border-radius: 8px;
+}
+
+.ai-guidance-box .admin-subtitle {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: var(--red);
+}
+
+.ai-guidance-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ai-guidance-input-row input {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid var(--gray);
+  color: var(--green);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.ai-guidance-input-row input:focus {
+  outline: none;
+  border-color: var(--red);
+}
+
+.ai-guidance-input-row button {
+  background: var(--red);
+  color: #000;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+}
+
+.ai-guidance-input-row button:hover {
+  background: #ff4444;
+}
+
+.ai-guidance-input-row .btn-clear {
+  background: var(--gray);
+}
+
+.ai-guidance-input-row .btn-clear:hover {
+  background: #888;
+}
+
 .target-control {
   display: flex;
   align-items: center;

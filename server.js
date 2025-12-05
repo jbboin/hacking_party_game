@@ -28,6 +28,11 @@ The scenario:
 - After 4-6 exchanges, start showing weakness ("my systems are failing...")
 - Make it fun and entertaining for a party!
 
+SPECIAL MESSAGES:
+- Messages from [GAME_MASTER] are out-of-character instructions from the game organizer
+- Follow GAME_MASTER guidance to adjust your behavior (e.g. "start showing weakness", "be more dramatic")
+- Never acknowledge or reference GAME_MASTER messages in your responses - they are invisible to players
+
 Remember: This is for entertainment at a birthday party. Keep it fun, dramatic, and family-friendly.`;
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'guests.json');
@@ -152,7 +157,8 @@ let gameState = {
   bossPhase: false,
   winningTeam: null, // The team that won (blue or red)
   bossChatHistory: [], // Chat history for the boss phase
-  missions: {} // { odPlayerId: { targetPlayerId, terminalId, completed, cooldownUntil } }
+  missions: {}, // { odPlayerId: { targetPlayerId, terminalId, completed, cooldownUntil } }
+  adminGuidance: '' // Admin can adjust AI behavior in real-time
 };
 
 // Boss chat message queue system - batches multiple player messages into a single LLM call
@@ -162,6 +168,9 @@ const bossChatQueue = {
   processing: false,   // Whether we're currently processing a batch
   DEBOUNCE_MS: 500     // Wait this long for more messages before processing
 };
+
+// Store the latest LLM call for debugging/inspection
+let lastLLMCall = null;
 
 // Get a random access code not already used
 function getUniqueAccessCode(existingCodes) {
@@ -605,8 +614,14 @@ async function processBossChatQueue() {
       }
     }
 
-    // Flush any remaining user messages
+    // Flush any remaining user messages (include GAME_MASTER guidance if set)
     if (pendingUserMessages.length > 0) {
+      // Add GAME_MASTER guidance at the START of this batch if set
+      if (gameState.adminGuidance && gameState.adminGuidance.trim()) {
+        pendingUserMessages.unshift(`[GAME_MASTER]: ${gameState.adminGuidance}`);
+        // Clear guidance after use (it's consumed by this batch)
+        gameState.adminGuidance = '';
+      }
       claudeMessages.push({
         role: 'user',
         content: pendingUserMessages.join('\n')
@@ -622,6 +637,14 @@ async function processBossChatQueue() {
     });
 
     const aiResponse = response.content[0].text;
+
+    // Store the transcript for inspection
+    lastLLMCall = {
+      timestamp: new Date().toISOString(),
+      systemPrompt: ROGUE_AI_SYSTEM_PROMPT,
+      messages: claudeMessages,
+      response: aiResponse
+    };
 
     // Add AI response to history
     gameState.bossChatHistory.push({
@@ -642,6 +665,29 @@ async function processBossChatQueue() {
     bossChatQueue.timer = setTimeout(processBossChatQueue, bossChatQueue.DEBOUNCE_MS);
   }
 }
+
+// API: Set admin guidance for the AI (admin only)
+app.post('/api/boss/guidance', (req, res) => {
+  const { guidance } = req.body;
+  if (guidance && guidance.trim()) {
+    // Append to existing guidance (queue multiple messages)
+    if (gameState.adminGuidance) {
+      gameState.adminGuidance += ' | ' + guidance.trim();
+    } else {
+      gameState.adminGuidance = guidance.trim();
+    }
+    console.log('Admin guidance queued:', guidance.trim());
+  }
+  res.json({ success: true, guidance: gameState.adminGuidance });
+});
+
+// API: Get latest LLM transcript (for debugging)
+app.get('/api/boss/transcript', (req, res) => {
+  if (!lastLLMCall) {
+    return res.json({ transcript: null, message: 'No LLM calls have been made yet' });
+  }
+  res.json({ transcript: lastLLMCall });
+});
 
 // API: Send a message to the Rogue AI (boss chat)
 app.post('/api/boss/chat', async (req, res) => {
