@@ -57,6 +57,15 @@
         <span class="dot green"></span>
       </div>
       <div class="terminal-body">
+        <!-- Disconnected Overlay (for eliminated players) -->
+        <div id="disconnected-box" class="disconnected-box hidden">
+          <div class="static-overlay"></div>
+          <div class="disconnected-content">
+            <div class="disconnected-text">DISCONNECTED</div>
+            <div class="disconnected-subtext">CONNECTION TERMINATED BY ROGUE AI</div>
+          </div>
+        </div>
+
         <h1 class="glitch success" data-text="ACCESS GRANTED">ACCESS GRANTED</h1>
         <p class="welcome-text">Welcome, <span id="display-name"></span></p>
         <div class="badges-row">

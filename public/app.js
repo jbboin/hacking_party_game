@@ -680,32 +680,39 @@ async function checkBossPhase(playerId) {
     const bossBox = document.getElementById('boss-phase-box');
     const inputContainer = document.getElementById('boss-input-container');
     const notWinningMsg = document.getElementById('boss-not-winning');
+    const disconnectedBox = document.getElementById('disconnected-box');
 
     if (data.bossPhase) {
       bossPhaseActive = true;
       bossWinningTeam = data.winningTeam;
       playerTeam = localStorage.getItem('team');
 
-      // Show boss phase box
-      bossBox.classList.remove('hidden');
-
-      // Hide other elements during boss phase
-      document.getElementById('mission-box')?.classList.add('hidden');
-      document.getElementById('hack-box')?.classList.add('hidden');
-      document.getElementById('waiting-box')?.classList.add('hidden');
-      document.getElementById('verifications-box')?.classList.add('hidden');
-
       // Check if player is on winning team
       const isWinningTeam = playerTeam === bossWinningTeam;
 
       if (isWinningTeam) {
-        // Show input for winning team
+        // Winning team: Show boss phase chat
+        disconnectedBox.classList.add('hidden');
+        bossBox.classList.remove('hidden');
         inputContainer.classList.remove('hidden');
         notWinningMsg.classList.add('hidden');
+
+        // Hide other elements during boss phase
+        document.getElementById('mission-box')?.classList.add('hidden');
+        document.getElementById('hack-box')?.classList.add('hidden');
+        document.getElementById('waiting-box')?.classList.add('hidden');
+        document.getElementById('verifications-box')?.classList.add('hidden');
       } else {
-        // Show not winning message for losing team
-        inputContainer.classList.add('hidden');
-        notWinningMsg.classList.remove('hidden');
+        // Losing team: Show disconnected overlay inside terminal
+        disconnectedBox.classList.remove('hidden');
+        bossBox.classList.add('hidden');
+
+        // Hide other elements so terminal is not tall
+        document.getElementById('mission-box')?.classList.add('hidden');
+        document.getElementById('hack-box')?.classList.add('hidden');
+        document.getElementById('waiting-box')?.classList.add('hidden');
+        document.getElementById('verifications-box')?.classList.add('hidden');
+        document.getElementById('access-code-box')?.classList.add('hidden');
       }
 
       // Update chat and AI processing state from server
@@ -729,6 +736,7 @@ async function checkBossPhase(playerId) {
       bossPhaseActive = false;
       bossWinningTeam = null;
       bossBox.classList.add('hidden');
+      disconnectedBox.classList.add('hidden');
     }
   } catch (err) {
     console.error('Failed to check boss phase:', err);
