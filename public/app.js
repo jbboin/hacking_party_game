@@ -668,6 +668,7 @@ function startPlayerPolling(playerId) {
 let bossPhaseActive = false;
 let bossWinningTeam = null;
 let bossChatHistory = [];
+let bossAiProcessing = false;
 let playerTeam = localStorage.getItem('team');
 
 // Check boss phase status
@@ -679,7 +680,6 @@ async function checkBossPhase(playerId) {
     const bossBox = document.getElementById('boss-phase-box');
     const inputContainer = document.getElementById('boss-input-container');
     const notWinningMsg = document.getElementById('boss-not-winning');
-    const waitingIndicator = document.getElementById('boss-waiting');
 
     if (data.bossPhase) {
       bossPhaseActive = true;
@@ -708,18 +708,16 @@ async function checkBossPhase(playerId) {
         notWinningMsg.classList.remove('hidden');
       }
 
-      // Update chat if server has different history
+      // Update chat and AI processing state from server
       const serverChat = data.bossChatHistory || [];
-      if (JSON.stringify(serverChat) !== JSON.stringify(bossChatHistory)) {
-        bossChatHistory = [...serverChat];
-        renderBossChat();
-      }
+      const serverAiProcessing = data.aiProcessing || false;
 
-      // Show/hide waiting indicator based on server's AI processing state
-      if (data.aiProcessing) {
-        waitingIndicator.classList.remove('hidden');
-      } else {
-        waitingIndicator.classList.add('hidden');
+      // Re-render if chat changed or AI processing state changed
+      if (JSON.stringify(serverChat) !== JSON.stringify(bossChatHistory) ||
+          serverAiProcessing !== bossAiProcessing) {
+        bossChatHistory = [...serverChat];
+        bossAiProcessing = serverAiProcessing;
+        renderBossChat();
       }
 
     } else {
@@ -740,7 +738,6 @@ async function checkBossPhase(playerId) {
 // Render boss chat messages
 function renderBossChat() {
   const container = document.getElementById('boss-chat-container');
-  const hackerName = localStorage.getItem('hackerName');
 
   let html = bossChatHistory.map(msg => `
     <div class="boss-chat-message ${msg.role}">
@@ -748,6 +745,11 @@ function renderBossChat() {
       <div class="content">${escapeHtml(msg.content)}</div>
     </div>
   `).join('');
+
+  // Add typing indicator if AI is processing (inline with chat messages)
+  if (bossAiProcessing) {
+    html += `<div class="boss-typing-indicator">ROGUE AI is processing<span>...</span></div>`;
+  }
 
   container.innerHTML = html;
 
@@ -782,21 +784,21 @@ async function sendBossMessage() {
 
   if (!message || bossSending) return;
 
-  // Show spinner - we're about to send
+  // Show spinner
   bossSending = true;
   updateBossSendButton();
 
   try {
-    // First, check if AI is currently processing
+    // Check if AI is currently processing
     const gameRes = await fetch('/api/game');
     const gameData = await gameRes.json();
 
-    // If AI is processing, wait for it to finish
+    // If AI is processing, wait for it to finish first
     if (gameData.aiProcessing) {
       await waitForAIToFinish();
     }
 
-    // Now send our message
+    // Now send the message
     const response = await fetch('/api/boss/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -809,6 +811,7 @@ async function sendBossMessage() {
       // Message was accepted - clear input and update chat from server
       input.value = '';
       bossChatHistory = data.chatHistory;
+      bossAiProcessing = true; // Message queued, AI will process
       renderBossChat();
     } else {
       // Show error - keep message in input
@@ -825,7 +828,7 @@ async function sendBossMessage() {
   }
 }
 
-// Wait for AI to finish processing before sending a new message
+// Wait for AI to finish processing
 async function waitForAIToFinish() {
   return new Promise((resolve) => {
     const checkInterval = setInterval(async () => {
@@ -840,9 +843,9 @@ async function waitForAIToFinish() {
       } catch (err) {
         console.error('Error checking AI status:', err);
         clearInterval(checkInterval);
-        resolve(); // Resolve anyway to not block forever
+        resolve();
       }
-    }, 500); // Check every 500ms
+    }, 300);
   });
 }
 

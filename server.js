@@ -510,7 +510,7 @@ app.get('/api/game', (req, res) => {
     bossPhase: gameState.bossPhase,
     winningTeam: gameState.winningTeam,
     bossChatHistory: gameState.bossChatHistory,
-    aiProcessing: bossChatQueue.processing || bossChatQueue.messages.length > 0,
+    aiProcessing: bossChatQueue.processing,
     terminals: TERMINALS
   });
 });

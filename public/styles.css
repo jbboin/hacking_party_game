@@ -1534,22 +1534,6 @@ input[type="text"]::placeholder {
   font-style: italic;
 }
 
-.boss-waiting {
-  padding: 0.75rem;
-  text-align: center;
-  background: rgba(255, 153, 0, 0.1);
-  border-top: 1px solid #333;
-}
-
-.boss-waiting .typing-dots {
-  color: #ff9900;
-  font-style: italic;
-}
-
-.boss-waiting .typing-dots span {
-  animation: blink 1s infinite;
-}
-
 @keyframes blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
@@ -1579,4 +1563,19 @@ input[type="text"]::placeholder {
   background: #111;
   color: #666;
   cursor: wait;
+}
+
+/* Boss typing indicator (inline with chat messages) */
+.boss-typing-indicator {
+  color: #999;
+  font-style: italic;
+  padding: 0.75rem 1rem;
+  background: rgba(150, 150, 150, 0.15);
+  border: 1px dashed #888;
+  border-radius: 8px;
+  margin: 0.5rem 1rem;
+}
+
+.boss-typing-indicator span {
+  animation: blink 1s infinite;
 }
