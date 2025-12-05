@@ -583,7 +583,7 @@
         return `
         <div class="chat-message ai">
           <div class="sender">ROGUE AI</div>
-          <div class="content">${escapeHtml(msg.content)}</div>
+          <div class="content">${formatWithNewlines(msg.content)}</div>
         </div>
       `;
       }).join('');
@@ -703,6 +703,10 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    function formatWithNewlines(text) {
+      return escapeHtml(text).replace(/\n/g, '<br>');
     }
 
     // Initial load

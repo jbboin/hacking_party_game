@@ -183,6 +183,10 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function formatWithNewlines(text) {
+  return escapeHtml(text).replace(/\n/g, '<br>');
+}
+
 // Submit trivia answer
 async function submitTrivia() {
   const answerInput = document.getElementById('trivia-answer');
@@ -789,7 +793,7 @@ function renderBossChat() {
     return `
     <div class="boss-chat-message ai${isNew ? ' new-message' : ''}">
       <div class="sender">ROGUE AI</div>
-      <div class="content">${escapeHtml(msg.content)}</div>
+      <div class="content">${formatWithNewlines(msg.content)}</div>
     </div>
   `;
   }).join('');
