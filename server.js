@@ -589,11 +589,14 @@ function assignMission(playerId, withCooldown = false) {
 
 // API: Get game state
 app.get('/api/game', (req, res) => {
+  // Filter out gamemaster messages - they're internal and shouldn't be shown to clients
+  const clientChatHistory = gameState.bossChatHistory.filter(msg => msg.role !== 'gamemaster');
+
   res.json({
     started: gameState.started,
     bossPhase: gameState.bossPhase,
     winningTeam: gameState.winningTeam,
-    bossChatHistory: gameState.bossChatHistory,
+    bossChatHistory: clientChatHistory,
     aiProcessing: bossChatQueue.processing,
     terminals: TERMINALS
   });
@@ -673,7 +676,10 @@ async function processBossChatQueue() {
     for (const msg of gameState.bossChatHistory) {
       if (msg.role === 'user') {
         pendingUserMessages.push(`[${msg.senderName}]: ${msg.content}`);
-      } else {
+      } else if (msg.role === 'gamemaster') {
+        // Gamemaster messages are sent as user messages with [GAME_MASTER] prefix
+        pendingUserMessages.push(`[GAME_MASTER]: ${msg.content}`);
+      } else if (msg.role === 'ai') {
         // Flush pending user messages before adding AI message
         if (pendingUserMessages.length > 0) {
           claudeMessages.push({
@@ -687,12 +693,26 @@ async function processBossChatQueue() {
           content: msg.content
         });
       }
+      // Skip 'system' messages (disconnect notifications) - not relevant to Claude
     }
 
     // Flush any remaining user messages (include GAME_MASTER guidance if set)
     if (pendingUserMessages.length > 0) {
       // Add GAME_MASTER guidance at the START of this batch if set
       if (gameState.adminGuidance && gameState.adminGuidance.trim()) {
+        // Find position to insert gamemaster (after last AI message, before current user batch)
+        let insertPos = 0;
+        for (let i = gameState.bossChatHistory.length - 1; i >= 0; i--) {
+          if (gameState.bossChatHistory[i].role === 'ai') {
+            insertPos = i + 1;
+            break;
+          }
+        }
+        // Store gamemaster message in history at the right position (before user messages)
+        gameState.bossChatHistory.splice(insertPos, 0, {
+          role: 'gamemaster',
+          content: gameState.adminGuidance
+        });
         pendingUserMessages.unshift(`[GAME_MASTER]: ${gameState.adminGuidance}`);
         // Clear guidance after use (it's consumed by this batch)
         gameState.adminGuidance = '';
@@ -817,10 +837,10 @@ app.post('/api/boss/chat', async (req, res) => {
     bossChatQueue.timer = setTimeout(processBossChatQueue, bossChatQueue.DEBOUNCE_MS);
   }
 
-  // Return immediately with current chat history
+  // Return immediately with current chat history (filtered for client)
   res.json({
     success: true,
-    chatHistory: gameState.bossChatHistory
+    chatHistory: gameState.bossChatHistory.filter(msg => msg.role !== 'gamemaster')
   });
 });
 
