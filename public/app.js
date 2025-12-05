@@ -469,6 +469,13 @@ async function fetchPlayerData(playerId) {
 
     const data = await response.json();
 
+    // If boss phase is active, skip updating mission/hack UI (boss phase handles visibility)
+    if (bossPhaseActive) {
+      // Only update score during boss phase
+      document.getElementById('player-score').textContent = data.score || 0;
+      return;
+    }
+
     // Update access code
     if (data.accessCode) {
       document.getElementById('access-code').textContent = data.accessCode;
@@ -642,11 +649,181 @@ function startPlayerPolling(playerId) {
   // Initial fetch
   fetchPlayerData(playerId);
   fetchVerifications(playerId);
+  checkBossPhase(playerId);
 
   // Poll every 3 seconds
   if (pollingInterval) clearInterval(pollingInterval);
   pollingInterval = setInterval(() => {
     fetchPlayerData(playerId);
-    fetchVerifications(playerId);
+    // Skip verifications during boss phase
+    if (!bossPhaseActive) {
+      fetchVerifications(playerId);
+    }
+    checkBossPhase(playerId);
   }, 3000);
 }
+
+// ================== BOSS PHASE CHAT ==================
+
+let bossPhaseActive = false;
+let bossWinningTeam = null;
+let bossChatHistory = [];
+let bossWaitingForAI = false;
+let playerTeam = localStorage.getItem('team');
+
+// Check boss phase status
+async function checkBossPhase(playerId) {
+  try {
+    const response = await fetch('/api/game');
+    const data = await response.json();
+
+    const bossBox = document.getElementById('boss-phase-box');
+    const inputContainer = document.getElementById('boss-input-container');
+    const notWinningMsg = document.getElementById('boss-not-winning');
+    const waitingIndicator = document.getElementById('boss-waiting');
+
+    if (data.bossPhase) {
+      bossPhaseActive = true;
+      bossWinningTeam = data.winningTeam;
+      playerTeam = localStorage.getItem('team');
+
+      // Show boss phase box
+      bossBox.classList.remove('hidden');
+
+      // Hide other elements during boss phase
+      document.getElementById('mission-box')?.classList.add('hidden');
+      document.getElementById('hack-box')?.classList.add('hidden');
+      document.getElementById('waiting-box')?.classList.add('hidden');
+      document.getElementById('verifications-box')?.classList.add('hidden');
+
+      // Check if player is on winning team
+      const isWinningTeam = playerTeam === bossWinningTeam;
+
+      if (isWinningTeam) {
+        // Show input for winning team
+        inputContainer.classList.remove('hidden');
+        notWinningMsg.classList.add('hidden');
+      } else {
+        // Show not winning message for losing team
+        inputContainer.classList.add('hidden');
+        notWinningMsg.classList.remove('hidden');
+      }
+
+      // Update chat if server has different history
+      const serverChat = data.bossChatHistory || [];
+      if (JSON.stringify(serverChat) !== JSON.stringify(bossChatHistory)) {
+        bossChatHistory = [...serverChat];
+        bossWaitingForAI = false;
+        renderBossChat();
+      }
+
+      // Show/hide waiting indicator
+      if (bossWaitingForAI) {
+        waitingIndicator.classList.remove('hidden');
+      } else {
+        waitingIndicator.classList.add('hidden');
+      }
+
+    } else {
+      // Boss phase not active
+      if (bossPhaseActive) {
+        // Was active, now ended - clear state
+        bossChatHistory = [];
+        bossWaitingForAI = false;
+      }
+      bossPhaseActive = false;
+      bossWinningTeam = null;
+      bossBox.classList.add('hidden');
+    }
+  } catch (err) {
+    console.error('Failed to check boss phase:', err);
+  }
+}
+
+// Render boss chat messages
+function renderBossChat() {
+  const container = document.getElementById('boss-chat-container');
+  const hackerName = localStorage.getItem('hackerName');
+
+  let html = bossChatHistory.map(msg => `
+    <div class="boss-chat-message ${msg.role}">
+      <div class="sender">${msg.role === 'ai' ? 'ROGUE AI' : (msg.senderName || 'HACKER')}</div>
+      <div class="content">${escapeHtml(msg.content)}</div>
+    </div>
+  `).join('');
+
+  container.innerHTML = html;
+
+  // Auto-scroll to bottom
+  container.scrollTop = container.scrollHeight;
+}
+
+// Send message to the Rogue AI
+async function sendBossMessage() {
+  const input = document.getElementById('boss-message-input');
+  const message = input.value.trim();
+  const playerId = parseInt(localStorage.getItem('hackerId'));
+  const hackerName = localStorage.getItem('hackerName');
+
+  if (!message || bossWaitingForAI) return;
+
+  // Clear input immediately
+  input.value = '';
+
+  // Add user message to local chat immediately (optimistic update)
+  bossChatHistory.push({
+    role: 'user',
+    content: message,
+    senderName: hackerName
+  });
+  bossWaitingForAI = true;
+  renderBossChat();
+
+  // Show waiting indicator
+  document.getElementById('boss-waiting').classList.remove('hidden');
+
+  // Send to server
+  try {
+    const response = await fetch('/api/boss/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, playerId })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Update with server's full chat history (includes AI response)
+      bossChatHistory = data.chatHistory;
+    } else {
+      // Show error
+      console.error('Boss chat error:', data.error);
+      // Remove the optimistic message
+      bossChatHistory.pop();
+    }
+  } catch (err) {
+    console.error('Failed to send boss message:', err);
+    // Remove the optimistic message
+    bossChatHistory.pop();
+  }
+
+  bossWaitingForAI = false;
+  document.getElementById('boss-waiting').classList.add('hidden');
+  renderBossChat();
+  input.focus();
+}
+
+// Make sendBossMessage available globally
+window.sendBossMessage = sendBossMessage;
+
+// Handle Enter key on boss input
+document.addEventListener('DOMContentLoaded', () => {
+  const bossInput = document.getElementById('boss-message-input');
+  if (bossInput) {
+    bossInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendBossMessage();
+      }
+    });
+  }
+});

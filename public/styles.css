@@ -1414,3 +1414,143 @@ input[type="text"]::placeholder {
     display: none;
   }
 }
+
+/* Boss Phase Chat (Player Page) */
+.boss-phase-box {
+  margin-top: 1.5rem;
+  border: 2px solid #ff9900;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(255, 153, 0, 0.3);
+}
+
+.boss-phase-header {
+  background: linear-gradient(90deg, #1a0f00, #2a1500);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #ff9900;
+}
+
+.boss-phase-title {
+  color: #ff9900;
+  font-weight: bold;
+  letter-spacing: 0.1rem;
+  font-size: 0.9rem;
+}
+
+.boss-chat-container {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.boss-chat-message {
+  max-width: 85%;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  line-height: 1.4;
+  font-size: 0.9rem;
+}
+
+.boss-chat-message.ai {
+  background: rgba(255, 153, 0, 0.15);
+  border: 1px solid #ff9900;
+  color: #ffaa33;
+  align-self: flex-start;
+}
+
+.boss-chat-message.user {
+  background: rgba(0, 255, 0, 0.15);
+  border: 1px solid #00ff00;
+  color: #00ff00;
+  align-self: flex-end;
+}
+
+.boss-chat-message .sender {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin-bottom: 0.2rem;
+}
+
+.boss-chat-message.ai .sender { color: #ff9900; }
+.boss-chat-message.user .sender { color: #00ff00; }
+
+.boss-input-container {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-top: 1px solid #333;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.boss-message-input {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #00ff00;
+  color: #00ff00;
+  padding: 0.6rem 0.8rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  border-radius: 5px;
+}
+
+.boss-message-input:focus {
+  outline: none;
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+}
+
+.boss-message-input:disabled {
+  opacity: 0.5;
+}
+
+.boss-send-btn {
+  background: linear-gradient(180deg, #00aa00, #006600);
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1rem;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  font-size: 0.8rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.boss-send-btn:hover {
+  background: linear-gradient(180deg, #00cc00, #008800);
+}
+
+.boss-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.boss-not-winning {
+  padding: 1rem;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.boss-waiting {
+  padding: 0.75rem;
+  text-align: center;
+  background: rgba(255, 153, 0, 0.1);
+  border-top: 1px solid #333;
+}
+
+.boss-waiting .typing-dots {
+  color: #ff9900;
+  font-style: italic;
+}
+
+.boss-waiting .typing-dots span {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}

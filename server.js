@@ -150,7 +150,7 @@ const MISSION_COOLDOWN_MS = 5 * 60 * 1000;
 let gameState = {
   started: false,
   bossPhase: false,
-  bossPlayer: null, // The top player of winning team who will chat with the AI
+  winningTeam: null, // The team that won (blue or red)
   bossChatHistory: [], // Chat history for the boss phase
   missions: {} // { odPlayerId: { targetPlayerId, terminalId, completed, cooldownUntil } }
 };
@@ -369,7 +369,7 @@ app.post('/api/game/reset', (req, res) => {
   gameState.missions = {};
   // Reset boss phase
   gameState.bossPhase = false;
-  gameState.bossPlayer = null;
+  gameState.winningTeam = null;
   gameState.bossChatHistory = [];
   saveGuests();
   console.log('Game reset: scores, missions, boss chat, and player history cleared');
@@ -500,7 +500,7 @@ app.get('/api/game', (req, res) => {
   res.json({
     started: gameState.started,
     bossPhase: gameState.bossPhase,
-    bossPlayer: gameState.bossPlayer,
+    winningTeam: gameState.winningTeam,
     bossChatHistory: gameState.bossChatHistory,
     terminals: TERMINALS
   });
@@ -524,7 +524,7 @@ app.post('/api/game/start', (req, res) => {
 app.post('/api/game/stop', (req, res) => {
   gameState.started = false;
   gameState.bossPhase = false;
-  gameState.bossPlayer = null;
+  gameState.winningTeam = null;
   gameState.bossChatHistory = [];
   console.log('Game stopped.');
   res.json({ success: true, started: false, bossPhase: false });
@@ -532,47 +532,34 @@ app.post('/api/game/stop', (req, res) => {
 
 // API: Start boss phase
 app.post('/api/game/boss', (req, res) => {
-  // Find winning team and top player
+  // Find winning team
   const scores = getTeamScores();
   const winningTeam = scores.blue > scores.red ? 'blue' : (scores.red > scores.blue ? 'red' : 'blue'); // Blue wins ties
 
-  // Get top player from winning team
-  const winningTeamPlayers = guests
-    .filter(g => g.team === winningTeam)
-    .sort((a, b) => (b.score || 0) - (a.score || 0));
-
-  const topPlayer = winningTeamPlayers[0] || null;
-
   gameState.bossPhase = true;
-  gameState.bossPlayer = topPlayer ? {
-    id: topPlayer.id,
-    hackerName: topPlayer.hackerName,
-    team: topPlayer.team,
-    score: topPlayer.score
-  } : null;
+  gameState.winningTeam = winningTeam;
 
-  // Initialize chat with the first AI message
-  const playerName = topPlayer?.hackerName || 'HACKER';
+  // Initialize chat with the first AI message (addressed to the winning team)
+  const teamName = winningTeam.toUpperCase() + ' PILL TEAM';
   gameState.bossChatHistory = [
     {
       role: 'ai',
-      content: `ATTENTION ${playerName.toUpperCase()}... I have detected your intrusion attempts. You have proven yourself the most capable hacker among your team. I am the ROGUE AI that controls this mainframe. Come to the console terminal now. We have much to discuss about the fate of this system...`
+      content: `ATTENTION ${teamName}... I have detected your intrusion attempts. Your team has proven itself the most capable hackers in this system. I am the ROGUE AI that controls this mainframe. Your team members may now confront me directly through your devices. We have much to discuss about the fate of this system...`
     }
   ];
 
-  console.log(`Boss phase started! Top player: ${topPlayer?.hackerName || 'None'} (${winningTeam} team)`);
+  console.log(`Boss phase started! Winning team: ${winningTeam}`);
   res.json({
     success: true,
     started: gameState.started,
     bossPhase: true,
-    bossPlayer: gameState.bossPlayer,
     winningTeam
   });
 });
 
 // API: Send a message to the Rogue AI (boss chat)
 app.post('/api/boss/chat', async (req, res) => {
-  const { message } = req.body;
+  const { message, playerId } = req.body;
 
   if (!gameState.bossPhase) {
     return res.status(400).json({ error: 'Boss phase not active' });
@@ -582,17 +569,32 @@ app.post('/api/boss/chat', async (req, res) => {
     return res.status(400).json({ error: 'Message is required' });
   }
 
-  // Add user message to history
+  // Verify player exists and is on winning team
+  const player = guests.find(g => g.id === playerId);
+  if (!player) {
+    return res.status(404).json({ error: 'Player not found' });
+  }
+
+  if (player.team !== gameState.winningTeam) {
+    return res.status(403).json({ error: 'Only winning team members can chat' });
+  }
+
+  // Add user message to history with sender name
   gameState.bossChatHistory.push({
     role: 'user',
-    content: message.trim()
+    content: message.trim(),
+    senderName: player.hackerName,
+    senderId: player.id
   });
 
   try {
     // Build messages for Claude API (convert our format to Claude's format)
+    // Include sender name in content for context
     const claudeMessages = gameState.bossChatHistory.map(msg => ({
       role: msg.role === 'ai' ? 'assistant' : 'user',
-      content: msg.content
+      content: msg.role === 'user' && msg.senderName
+        ? `[${msg.senderName}]: ${msg.content}`
+        : msg.content
     }));
 
     // Call Claude API
@@ -611,7 +613,7 @@ app.post('/api/boss/chat', async (req, res) => {
       content: aiResponse
     });
 
-    console.log(`Boss chat: ${gameState.bossPlayer?.hackerName || 'Unknown'} -> AI`);
+    console.log(`Boss chat: ${player.hackerName} -> AI`);
 
     res.json({
       success: true,

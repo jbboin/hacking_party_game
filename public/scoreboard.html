@@ -434,15 +434,8 @@
         <span class="dot green"></span>
         <span class="boss-terminal-title">ROGUE AI TERMINAL v6.6.6</span>
       </div>
-      <div class="boss-player-info" id="boss-player-info">
-        <div class="label">CHOSEN HACKER</div>
-        <div class="player-name" id="boss-player-name">---</div>
-      </div>
       <div class="boss-chat-container" id="boss-chat">
         <!-- Chat messages will be rendered here -->
-      </div>
-      <div class="boss-input-section">
-        <input type="text" class="boss-message-input" id="boss-message-input" placeholder="Enter your response..." autocomplete="off" autofocus>
       </div>
     </div>
   </div>
@@ -540,12 +533,6 @@
 
     // Update boss phase screen
     function updateBossScreen(data) {
-      // Update player name
-      const playerNameEl = document.getElementById('boss-player-name');
-      if (data.bossPlayer) {
-        playerNameEl.textContent = data.bossPlayer.hackerName;
-      }
-
       // Sync server chat with local chat
       const serverChat = data.bossChatHistory || [];
       // Sync if server has more messages OR if server was reset (fewer messages)
@@ -563,7 +550,7 @@
 
       let html = localChatHistory.map(msg => `
         <div class="chat-message ${msg.role}">
-          <div class="sender">${msg.role === 'ai' ? 'ROGUE AI' : bossPlayer?.hackerName || 'HACKER'}</div>
+          <div class="sender">${msg.role === 'ai' ? 'ROGUE AI' : (msg.senderName || 'HACKER')}</div>
           <div class="content">${escapeHtml(msg.content)}</div>
         </div>
       `).join('');
@@ -579,43 +566,6 @@
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    // Send message to the AI
-    async function sendBossMessage() {
-      const input = document.getElementById('boss-message-input');
-      const message = input.value.trim();
-
-      if (!message || waitingForAI) return;
-
-      // Clear input immediately
-      input.value = '';
-
-      // Add user message to local chat immediately
-      localChatHistory.push({ role: 'user', content: message });
-      waitingForAI = true;
-      renderChat();
-
-      // Send to server
-      try {
-        const response = await fetch('/api/boss/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          // Update with server's full chat history (includes AI response)
-          localChatHistory = data.chatHistory;
-        }
-      } catch (err) {
-        console.error('Failed to send message:', err);
-      }
-
-      waitingForAI = false;
-      renderChat();
-      input.focus();
-    }
 
     // Stable sort: only move up if you have STRICTLY more points than the person above
     function stableSortPlayers(players, prevOrder) {
@@ -734,13 +684,6 @@
       checkGameState();
       updateScoreboard();
     }, 2000);
-
-    // Handle Enter key on boss input
-    document.getElementById('boss-message-input').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        sendBossMessage();
-      }
-    });
   </script>
 </body>
 </html>
