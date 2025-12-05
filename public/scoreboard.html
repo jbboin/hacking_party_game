@@ -533,15 +533,12 @@
 
     // Update boss phase screen
     function updateBossScreen(data) {
-      // Sync server chat with local chat
+      // Always sync from server - it's the source of truth
       const serverChat = data.bossChatHistory || [];
-      // Sync if server has more messages OR if server was reset (fewer messages)
-      if (serverChat.length !== localChatHistory.length ||
-          (serverChat.length === 0 && localChatHistory.length > 0)) {
-        localChatHistory = [...serverChat];
-        waitingForAI = false;
-        renderChat();
-      }
+      localChatHistory = [...serverChat];
+      // Use server's aiProcessing flag
+      waitingForAI = data.aiProcessing || false;
+      renderChat();
     }
 
     // Render the chat messages

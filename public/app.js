@@ -668,7 +668,6 @@ function startPlayerPolling(playerId) {
 let bossPhaseActive = false;
 let bossWinningTeam = null;
 let bossChatHistory = [];
-let bossWaitingForAI = false;
 let playerTeam = localStorage.getItem('team');
 
 // Check boss phase status
@@ -713,12 +712,11 @@ async function checkBossPhase(playerId) {
       const serverChat = data.bossChatHistory || [];
       if (JSON.stringify(serverChat) !== JSON.stringify(bossChatHistory)) {
         bossChatHistory = [...serverChat];
-        bossWaitingForAI = false;
         renderBossChat();
       }
 
-      // Show/hide waiting indicator
-      if (bossWaitingForAI) {
+      // Show/hide waiting indicator based on server's AI processing state
+      if (data.aiProcessing) {
         waitingIndicator.classList.remove('hidden');
       } else {
         waitingIndicator.classList.add('hidden');
@@ -729,7 +727,6 @@ async function checkBossPhase(playerId) {
       if (bossPhaseActive) {
         // Was active, now ended - clear state
         bossChatHistory = [];
-        bossWaitingForAI = false;
       }
       bossPhaseActive = false;
       bossWinningTeam = null;
@@ -758,32 +755,48 @@ function renderBossChat() {
   container.scrollTop = container.scrollHeight;
 }
 
+// Track if currently sending a message
+let bossSending = false;
+
+// Update send button state
+function updateBossSendButton() {
+  const sendBtn = document.getElementById('boss-send-btn');
+  const input = document.getElementById('boss-message-input');
+
+  if (bossSending) {
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<span class="spinner"></span>';
+    input.disabled = true;
+  } else {
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'SEND';
+    input.disabled = false;
+  }
+}
+
 // Send message to the Rogue AI
 async function sendBossMessage() {
   const input = document.getElementById('boss-message-input');
   const message = input.value.trim();
   const playerId = parseInt(localStorage.getItem('hackerId'));
-  const hackerName = localStorage.getItem('hackerName');
 
-  if (!message || bossWaitingForAI) return;
+  if (!message || bossSending) return;
 
-  // Clear input immediately
-  input.value = '';
+  // Show spinner - we're about to send
+  bossSending = true;
+  updateBossSendButton();
 
-  // Add user message to local chat immediately (optimistic update)
-  bossChatHistory.push({
-    role: 'user',
-    content: message,
-    senderName: hackerName
-  });
-  bossWaitingForAI = true;
-  renderBossChat();
-
-  // Show waiting indicator
-  document.getElementById('boss-waiting').classList.remove('hidden');
-
-  // Send to server
   try {
+    // First, check if AI is currently processing
+    const gameRes = await fetch('/api/game');
+    const gameData = await gameRes.json();
+
+    // If AI is processing, wait for it to finish
+    if (gameData.aiProcessing) {
+      await waitForAIToFinish();
+    }
+
+    // Now send our message
     const response = await fetch('/api/boss/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -793,24 +806,44 @@ async function sendBossMessage() {
     const data = await response.json();
 
     if (data.success) {
-      // Update with server's full chat history (includes AI response)
+      // Message was accepted - clear input and update chat from server
+      input.value = '';
       bossChatHistory = data.chatHistory;
+      renderBossChat();
     } else {
-      // Show error
+      // Show error - keep message in input
       console.error('Boss chat error:', data.error);
-      // Remove the optimistic message
-      bossChatHistory.pop();
     }
   } catch (err) {
     console.error('Failed to send boss message:', err);
-    // Remove the optimistic message
-    bossChatHistory.pop();
+    // Keep message in input on error
+  } finally {
+    // Always stop spinner
+    bossSending = false;
+    updateBossSendButton();
+    input.focus();
   }
+}
 
-  bossWaitingForAI = false;
-  document.getElementById('boss-waiting').classList.add('hidden');
-  renderBossChat();
-  input.focus();
+// Wait for AI to finish processing before sending a new message
+async function waitForAIToFinish() {
+  return new Promise((resolve) => {
+    const checkInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/game');
+        const data = await res.json();
+
+        if (!data.aiProcessing) {
+          clearInterval(checkInterval);
+          resolve();
+        }
+      } catch (err) {
+        console.error('Error checking AI status:', err);
+        clearInterval(checkInterval);
+        resolve(); // Resolve anyway to not block forever
+      }
+    }, 500); // Check every 500ms
+  });
 }
 
 // Make sendBossMessage available globally

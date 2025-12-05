@@ -155,6 +155,14 @@ let gameState = {
   missions: {} // { odPlayerId: { targetPlayerId, terminalId, completed, cooldownUntil } }
 };
 
+// Boss chat message queue system - batches multiple player messages into a single LLM call
+const bossChatQueue = {
+  messages: [],        // Queued messages: { player, message, resolve, reject }
+  timer: null,         // Debounce timer
+  processing: false,   // Whether we're currently processing a batch
+  DEBOUNCE_MS: 500     // Wait this long for more messages before processing
+};
+
 // Get a random access code not already used
 function getUniqueAccessCode(existingCodes) {
   const available = ACCESS_CODES.filter(c => !existingCodes.includes(c));
@@ -502,6 +510,7 @@ app.get('/api/game', (req, res) => {
     bossPhase: gameState.bossPhase,
     winningTeam: gameState.winningTeam,
     bossChatHistory: gameState.bossChatHistory,
+    aiProcessing: bossChatQueue.processing || bossChatQueue.messages.length > 0,
     terminals: TERMINALS
   });
 });
@@ -557,6 +566,83 @@ app.post('/api/game/boss', (req, res) => {
   });
 });
 
+// Process the queued boss chat messages
+async function processBossChatQueue() {
+  if (bossChatQueue.messages.length === 0 || bossChatQueue.processing) {
+    return;
+  }
+
+  bossChatQueue.processing = true;
+  const batch = [...bossChatQueue.messages];
+  bossChatQueue.messages = [];
+
+  // Messages are already in history (added by the endpoint), just log the batch
+  const playerNames = batch.map(b => b.player.hackerName).join(', ');
+  console.log(`Boss chat batch: ${batch.length} message(s) from [${playerNames}]`);
+
+  try {
+    // Build messages for Claude API
+    // Merge consecutive user messages into a single message for Claude
+    const claudeMessages = [];
+    let pendingUserMessages = [];
+
+    for (const msg of gameState.bossChatHistory) {
+      if (msg.role === 'user') {
+        pendingUserMessages.push(`[${msg.senderName}]: ${msg.content}`);
+      } else {
+        // Flush pending user messages before adding AI message
+        if (pendingUserMessages.length > 0) {
+          claudeMessages.push({
+            role: 'user',
+            content: pendingUserMessages.join('\n')
+          });
+          pendingUserMessages = [];
+        }
+        claudeMessages.push({
+          role: 'assistant',
+          content: msg.content
+        });
+      }
+    }
+
+    // Flush any remaining user messages
+    if (pendingUserMessages.length > 0) {
+      claudeMessages.push({
+        role: 'user',
+        content: pendingUserMessages.join('\n')
+      });
+    }
+
+    // Call Claude API
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system: ROGUE_AI_SYSTEM_PROMPT,
+      messages: claudeMessages
+    });
+
+    const aiResponse = response.content[0].text;
+
+    // Add AI response to history
+    gameState.bossChatHistory.push({
+      role: 'ai',
+      content: aiResponse
+    });
+
+  } catch (error) {
+    console.error('Claude API error:', error);
+    // User messages stay in history, just log the error
+    // The AI simply didn't respond this time
+  }
+
+  bossChatQueue.processing = false;
+
+  // If more messages arrived while processing, process them too
+  if (bossChatQueue.messages.length > 0) {
+    bossChatQueue.timer = setTimeout(processBossChatQueue, bossChatQueue.DEBOUNCE_MS);
+  }
+}
+
 // API: Send a message to the Rogue AI (boss chat)
 app.post('/api/boss/chat', async (req, res) => {
   const { message, playerId } = req.body;
@@ -579,7 +665,7 @@ app.post('/api/boss/chat', async (req, res) => {
     return res.status(403).json({ error: 'Only winning team members can chat' });
   }
 
-  // Add user message to history with sender name
+  // Add user message to history immediately (so it shows up for everyone)
   gameState.bossChatHistory.push({
     role: 'user',
     content: message.trim(),
@@ -587,50 +673,27 @@ app.post('/api/boss/chat', async (req, res) => {
     senderId: player.id
   });
 
-  try {
-    // Build messages for Claude API (convert our format to Claude's format)
-    // Include sender name in content for context
-    const claudeMessages = gameState.bossChatHistory.map(msg => ({
-      role: msg.role === 'ai' ? 'assistant' : 'user',
-      content: msg.role === 'user' && msg.senderName
-        ? `[${msg.senderName}]: ${msg.content}`
-        : msg.content
-    }));
+  // Queue for AI processing (fire and forget - don't wait)
+  bossChatQueue.messages.push({
+    player,
+    message: message.trim()
+  });
 
-    // Call Claude API
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 300,
-      system: ROGUE_AI_SYSTEM_PROMPT,
-      messages: claudeMessages
-    });
-
-    const aiResponse = response.content[0].text;
-
-    // Add AI response to history
-    gameState.bossChatHistory.push({
-      role: 'ai',
-      content: aiResponse
-    });
-
-    console.log(`Boss chat: ${player.hackerName} -> AI`);
-
-    res.json({
-      success: true,
-      response: aiResponse,
-      chatHistory: gameState.bossChatHistory
-    });
-  } catch (error) {
-    console.error('Claude API error:', error);
-
-    // Remove the user message we added since API call failed
-    gameState.bossChatHistory.pop();
-
-    res.status(500).json({
-      error: 'Failed to get AI response',
-      details: error.message
-    });
+  // Reset/start the debounce timer
+  if (bossChatQueue.timer) {
+    clearTimeout(bossChatQueue.timer);
   }
+
+  // If not currently processing, start the timer
+  if (!bossChatQueue.processing) {
+    bossChatQueue.timer = setTimeout(processBossChatQueue, bossChatQueue.DEBOUNCE_MS);
+  }
+
+  // Return immediately with current chat history
+  res.json({
+    success: true,
+    chatHistory: gameState.bossChatHistory
+  });
 });
 
 // API: Get player's mission and access code
