@@ -1013,6 +1013,7 @@
     let waitingForAI = false;
     let animatedMessageCount = 0; // How many messages have been fully animated
     let currentlyAnimatingIndex = -1; // Index of message currently being animated (-1 if none)
+    let isFirstLoad = true; // Skip animations on page load
     let dotCount = 0;
 
     // Firewall HP tracking for damage effects
@@ -1113,6 +1114,15 @@
 
       // Use server's aiProcessing flag for "thinking" indicator
       waitingForAI = data.aiProcessing || false;
+
+      // On first load, skip animations - show all messages immediately
+      if (isFirstLoad) {
+        isFirstLoad = false;
+        animatedMessageCount = localChatHistory.length;
+        renderChat();
+        updateFirewallHP(data.firewallHP, data.firewallMaxHP);
+        return;
+      }
 
       // Check if we need to start animating a new message
       // Only start if not currently animating something

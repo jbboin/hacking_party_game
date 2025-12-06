@@ -727,6 +727,7 @@ let bossChatHistory = [];
 let bossAiProcessing = false;
 let animatedMessageCount = 0; // How many messages have been fully animated
 let currentlyAnimatingIndex = -1; // Index of message currently being animated (-1 if none)
+let isFirstLoad = true; // Skip animations on page load
 let playerTeam = localStorage.getItem('team');
 let bossPlayerInfo = []; // Player info for chat highlighting
 let bossAccessCodes = []; // Access codes for AI highlighting
@@ -854,6 +855,14 @@ async function checkBossPhase(playerId) {
       const chatChanged = JSON.stringify(filteredChat) !== JSON.stringify(bossChatHistory);
       bossChatHistory = [...filteredChat];
       bossAiProcessing = serverAiProcessing;
+
+      // On first load, skip animations - show all messages immediately
+      if (isFirstLoad) {
+        isFirstLoad = false;
+        animatedMessageCount = bossChatHistory.length;
+        renderBossChat();
+        return;
+      }
 
       // Check if we need to start animating a new message
       // Only start if not currently animating something
