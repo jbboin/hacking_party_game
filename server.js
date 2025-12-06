@@ -139,13 +139,13 @@ const upload = multer({
 
 // Access codes pool - hacker-themed words (40 codes)
 const ACCESS_CODES = [
-  'CIPHER', 'MATRIX', 'GHOST', 'BINARY', 'VECTOR',
+  'BYTE', 'MATRIX', 'GHOST', 'BINARY', 'VECTOR',
   'NEURAL', 'QUANTUM', 'SHADOW', 'PHOENIX', 'VORTEX',
   'NEXUS', 'OMEGA', 'ENIGMA', 'PULSE', 'CRYPTO',
-  'DAEMON', 'KERNEL', 'PROXY', 'FIREWALL', 'BREACH',
+  'ORBIT', 'KERNEL', 'PROXY', 'HELIX', 'NOVA',
   'SPECTRE', 'ROGUE', 'GLITCH', 'VIRUS', 'MALWARE',
   'TROJAN', 'WORM', 'SPIDER', 'HUNTER', 'REAPER',
-  'CYPHER', 'STORM', 'BLADE', 'RAZOR', 'COBRA',
+  'STATIC', 'STORM', 'BLADE', 'RAZOR', 'COBRA',
   'FALCON', 'RAVEN', 'WRAITH', 'PHANTOM', 'STEALTH'
 ];
 

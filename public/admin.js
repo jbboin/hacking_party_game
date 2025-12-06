@@ -308,8 +308,22 @@ async function loadGuests() {
       return;
     }
 
-    // Sort by score descending
-    const sorted = [...guests].sort((a, b) => (b.score || 0) - (a.score || 0));
+    // Sort players
+    let sorted;
+    if (isBossMode) {
+      // Boss mode: saved first, then active, then disconnected
+      sorted = [...guests].sort((a, b) => {
+        const getStatusOrder = (g) => {
+          if (g.saved) return 0;
+          if (g.disconnected) return 2;
+          return 1; // active
+        };
+        return getStatusOrder(a) - getStatusOrder(b);
+      });
+    } else {
+      // Normal mode: sort by score descending
+      sorted = [...guests].sort((a, b) => (b.score || 0) - (a.score || 0));
+    }
 
     listEl.innerHTML = sorted.map((guest) => {
       const teamClass = guest.team === 'red' ? 'team-red-border' : 'team-blue-border';
