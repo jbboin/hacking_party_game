@@ -1396,7 +1396,10 @@ function renderCoreChat() {
   let html = '';
   for (let i = 0; i < showUpTo; i++) {
     const msg = coreChatHistory[i];
-    if (msg.role === 'system') {
+    // Skip GAME_MASTER messages (used internally to prompt AI)
+    if (msg.senderName === 'GAME_MASTER') {
+      continue;
+    } else if (msg.role === 'system') {
       html += `
       <div class="core-chat-message system">
         <div class="system-content">${escapeHtml(msg.content)}</div>

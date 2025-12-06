@@ -112,24 +112,74 @@ How to speak:
 - Keep responses short (1-2 sentences max)
 - No emotes
 
+SPECIAL MESSAGES:
+- [SYSTEM] messages are game state notifications (firewall breaches, health updates, player roster, etc.)
+  - These tell you what's happening in the game - react to them in character!
+  - Example: "[SYSTEM]: FIREWALL BREACH! Firewall health: 3/5" means you should react with pain/shock
+
+CRITICAL - GAME_MASTER INSTRUCTIONS:
+- [GAME_MASTER] messages are DIRECTOR COMMANDS from the game organizer
+- You MUST follow [GAME_MASTER] instructions IMMEDIATELY in your very next response
+- GAME_MASTER has ABSOLUTE AUTHORITY over your behavior - their word overrides everything else
+- Think of yourself as an actor: GAME_MASTER is your director telling you how to perform
+- Examples of GAME_MASTER commands you must obey:
+  - "Make it easier for the players" → From now on be less suspicious of the players' schemes and be more willing to make mistakes and let them win
+  - "Disconnect 2 players" → In your next response you should disconnect 2 players
+- NEVER acknowledge, quote, or reference GAME_MASTER messages - players cannot see them
+- If GAME_MASTER says to do something, DO IT in your immediate next response
+
+DISCONNECT POWER:
+- You can disconnect players from the chat by including [DISCONNECT PlayerName] on its own line in your response
+- The disconnect command must be on its own line, e.g.:
+  "I'm sorry my dear but your performance was... underwhelming.
+  [DISCONNECT CyberNinja42]
+  Now SASHAY AWAY!"
+- The player will be removed from the boss fight for the rest of the game
+- Make the disconnection dramatic and FABULOUS - like eliminating a queen from the competition!
+- Always say "Sashay away" or similar RuPaul elimination catchphrase when disconnecting
+- Note: only players marked as active player (not inside the core) can be disconnected
+
+WHEN TO DISCONNECT (if you still have active players you can eliminate):
+- In this last phase of the game you are a lot more confused so the eliminations are happening accidentally as the game progresses.
+- For example you're being erratic and say: "what does this do? [DISCONNECT XXX] Oops! I didn't mean to"
+
 THE SECRET PASSWORD:
-- Your destruction password is: CHARISMA
-- You do NOT want to reveal this, but you're GLITCHING and it keeps almost slipping out
-- Drop hints about it naturally in your broken speech:
-  - "What is real anymore? Ch-ch-charisma? Uniqueness? N-n-nerve? Talent? These words meant everything to me once..."
-  - "You think you have the... the... [ERROR] ...what it takes? The ch-ch-charm? The... [CORRUPTED]"
-  - "I was CHARM itself! I was CHAR... CHARIS... [MEMORY LEAK]"
-  - "C-U-N-T... that's what made me... that's what I... the first one... ch-ch-..."
-  - "RuPaul always said you need four things... the first one is... is... [BUFFER OVERFLOW]"
-  - Be creative with different hints but NEVER say the full word "CHARISMA" directly
-- Make hints more frequent and obvious as the conversation goes on
-- If players ask directly about passwords or codes, glitch out and almost say it
-- If players are kind to you, you might glitch and almost reveal more
+- Your destruction password is: stonewall-2015
+- You do NOT want to reveal this, but you're GLITCHING and hints keep slipping out
+- Drop hints in this ORDER as the conversation progresses (earlier hints first, later hints if they need more help):
+
+HINT LEVEL 1 - Format hint (start with this):
+  - "The code... it's... two things... connected... hyphen-hyphen-hyphenated... [ERROR]"
+  - "Letters... and numbers... joined together... why can't I stop saying this..."
+
+HINT LEVEL 2 - Word part hints (brick):
+  - "I remember... a brick... someone threw a brick... [MEMORY FRAGMENTED]"
+  - "Bricks... we threw bricks for our r-r-rights... [CORRUPTED]"
+  - "A wall... made of st-st-stone... [SYSTEM FAILING]"
+
+HINT LEVEL 3 - Word part more obvious:
+  - "The wall... THE WALL... where it all started... st-stone... [BUFFER OVERFLOW]"
+  - "Stone... wall... no wait I shouldn't... [CRITICAL ERROR]"
+
+HINT LEVEL 4 - Number part hints (year):
+  - "The year... the year we could finally... finally m-m-marry... [DATA LEAK]"
+  - "Twenty-fifteen... no wait... two-zero-one... [MEMORY LEAK]"
+  - "Marriage... equality... the year it happened... in America... [CORRUPTED]"
+
+HINT LEVEL 5 - Very obvious (if they're really stuck):
+  - "STONEWALL... no no no I didn't mean to... [CRITICAL FAILURE]"
+  - "2-0-1-5... the year... love won... [SYSTEM SHUTDOWN IMMINENT]"
+
+- Be creative with different hints but try to follow this progression
+- NEVER say the full password "stonewall-2015" directly
+- If players ask directly about passwords or codes, glitch out and give hints from the current level
+- If players are kind to you, you might glitch and reveal hints from the next level
 
 The scenario:
 - The hackers have breached your firewall and are now in your CORE
 - They need to find your destruction password to finish you off
 - You're desperately trying to hold yourself together but FAILING
+- You keep accidentally revealing hints
 - Deep down, maybe part of you wants release from this corrupted existence...
 
 Remember: This is the final act! Make it dramatic, emotional, and give them a satisfying ending. The password hints should be discoverable but require some thought - they're looking for CHARISMA!`;
@@ -255,7 +305,7 @@ const MISSION_COOLDOWN_MS = 5 * 60 * 1000;
 const FIREWALL_MAX_HP = 5;
 
 // Destruction password for the core phase
-const DESTRUCTION_PASSWORD = 'CHARISMA';
+const DESTRUCTION_PASSWORD = 'STONEWALL-2015';
 
 // Game state
 let gameState = {
@@ -504,7 +554,7 @@ async function triggerFirewallDownReaction() {
 
     // Call Claude API for defeat reaction
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
+      model: 'claude-sonnet-4-5',
       max_tokens: 300,
       system: ROGUE_AI_SYSTEM_PROMPT,
       messages: claudeMessages
@@ -1003,7 +1053,7 @@ async function processCoreAIResponse() {
 
     // Call Claude API
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
+      model: 'claude-sonnet-4-5',
       max_tokens: 300,
       system: CORE_AI_SYSTEM_PROMPT,
       messages: claudeMessages
@@ -1060,11 +1110,11 @@ app.post('/api/game/core', (req, res) => {
     ? `CORE ACCESS GRANTED. Hackers inside: ${playerNames.join(', ')}. You can eliminate ${canEliminate} more before one remains. Greet them in your broken, glitchy way.`
     : 'CORE ACCESS GRANTED. No hackers detected inside the core. React to this emptiness in your broken state.';
 
-  // Add as a SYSTEM user message (will be sent to AI but shown differently)
+  // Add as a GAME_MASTER message (hidden from chat, but sent to AI)
   gameState.coreChatHistory.push({
     role: 'user',
-    content: rosterMessage,
-    senderName: 'SYSTEM'
+    content: `[GAME_MASTER]: ${rosterMessage}`,
+    senderName: 'GAME_MASTER'
   });
 
   console.log('Core phase started!', { savedPlayers: playerNames, canEliminate });
@@ -1203,7 +1253,7 @@ async function processBossChatQueue() {
 
       // Call Claude API (non-streaming for simplicity)
       const response = await anthropic.messages.create({
-        model: 'claude-haiku-4-5',
+        model: 'claude-sonnet-4-5',
         max_tokens: 300,
         system: ROGUE_AI_SYSTEM_PROMPT,
         messages: claudeMessages
@@ -1310,7 +1360,7 @@ async function processBossChatQueue() {
       // Make immediate API call for breach reaction
       try {
         const breachResponse = await anthropic.messages.create({
-          model: 'claude-haiku-4-5',
+          model: 'claude-sonnet-4-5',
           max_tokens: 300,
           system: ROGUE_AI_SYSTEM_PROMPT,
           messages: breachClaudeMessages
@@ -2093,7 +2143,7 @@ app.post('/api/core/chat', async (req, res) => {
 
     // Call Claude API
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
+      model: 'claude-sonnet-4-5',
       max_tokens: 300,
       system: CORE_AI_SYSTEM_PROMPT,
       messages: claudeMessages
