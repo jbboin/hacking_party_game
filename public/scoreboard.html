@@ -211,6 +211,11 @@
       50% { opacity: 0.7; text-shadow: 0 0 40px rgba(0, 255, 0, 0.8); }
     }
 
+    @keyframes urgentBlink {
+      0%, 100% { opacity: 1; text-shadow: 0 0 30px rgba(0, 255, 0, 0.8), 0 0 60px rgba(0, 255, 0, 0.4); }
+      50% { opacity: 0.3; text-shadow: 0 0 10px rgba(0, 255, 0, 0.3); }
+    }
+
     /* Intro screens */
     .intro-screen {
       position: fixed;
@@ -236,7 +241,7 @@
       text-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
       text-transform: uppercase;
       letter-spacing: 0.3rem;
-      animation: pulse 2s ease-in-out infinite;
+      animation: urgentBlink 0.5s ease-in-out infinite;
     }
 
     .intro-subtitle {
@@ -244,6 +249,11 @@
       color: #666;
       letter-spacing: 0.2rem;
       margin-top: 1rem;
+    }
+
+    .intro-terminal-content {
+      padding: 3rem 2rem;
+      text-align: center;
     }
 
     /* Mission brief screen */
@@ -1300,8 +1310,18 @@
 
   <!-- Incoming transmission screen (intro phase 1) -->
   <div class="intro-screen hidden" id="transmission-screen">
-    <div class="intro-title">INCOMING TRANSMISSION</div>
-    <div class="intro-subtitle">Decrypting secure channel<span class="standby-dots" id="transmission-dots">...</span></div>
+    <div class="mission-brief-terminal">
+      <div class="mission-brief-terminal-header">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+        <span class="mission-brief-terminal-title">INCOMING SIGNAL</span>
+      </div>
+      <div class="intro-terminal-content">
+        <div class="intro-title">INCOMING TRANSMISSION</div>
+        <div class="intro-subtitle">Decrypting secure channel<span class="standby-dots" id="transmission-dots">...</span></div>
+      </div>
+    </div>
   </div>
 
   <!-- Mission brief screen (intro phase 2) -->
