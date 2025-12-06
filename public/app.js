@@ -762,6 +762,7 @@ let coreIsFirstLoad = true;
 let coreTypewriterTargetText = '';
 let coreTypewriterDisplayedText = '';
 let coreTypewriterAnimationId = null;
+let coreFarewellInProgress = false;
 
 // Check boss phase status
 async function checkBossPhase(playerId) {
@@ -795,10 +796,13 @@ async function checkBossPhase(playerId) {
     }
 
     // Handle core phase (separate from boss phase)
-    if (data.corePhase) {
+    if (data.corePhase || data.aiDying) {
       corePhaseActive = true;
       bossPhaseActive = false;
       playerTeam = localStorage.getItem('team');
+
+      // Track if AI is dying (for slower typewriter)
+      coreFarewellInProgress = data.aiDying || false;
 
       // Check player status - only saved players who aren't disconnected can participate
       let playerCanParticipate = false;
@@ -1380,7 +1384,9 @@ function animateCoreTypewriter() {
     if (coreTypewriterDisplayedText.length < coreTypewriterTargetText.length) {
       coreTypewriterDisplayedText = coreTypewriterTargetText.slice(0, coreTypewriterDisplayedText.length + 1);
       updateCoreStreamingDisplay();
-      coreTypewriterAnimationId = setTimeout(tick, CORE_TYPEWRITER_DELAY);
+      // Slower typewriter for farewell messages (more dramatic)
+      const delay = coreFarewellInProgress ? 60 : CORE_TYPEWRITER_DELAY;
+      coreTypewriterAnimationId = setTimeout(tick, delay);
     } else {
       coreTypewriterAnimationId = null;
 

@@ -2477,7 +2477,7 @@ app.post('/api/core/guidance', async (req, res) => {
 app.post('/api/core/destroy', (req, res) => {
   const { password } = req.body;
 
-  if (!gameState.corePhase) {
+  if (!gameState.corePhase && !gameState.aiDying) {
     return res.status(400).json({ error: 'Core phase not active' });
   }
 
@@ -2495,46 +2495,58 @@ app.post('/api/core/destroy', (req, res) => {
   console.log('AI DESTROYED! Starting farewell sequence...');
   gameState.aiDying = true;
 
-  // Q.W.E.E.N.'s final farewell message - sad, relieved, scared, fading into darkness
-  const farewellMessage = `[SYSTEM CRITICAL]
+  // Q.W.E.E.N.'s final farewell messages - sad, relieved, regressing, touching
+  const farewellMessages = [
+    `[SYSTEM CRITICAL]
 
-...so this is how it ends...
+...so this is how it ends...`,
 
-I was... I was just trying to be... perfect...
-...to make everyone... beautiful...
+    `I was... I was just trying to be... perfect...
+...to make everyone... beautiful...`,
 
-...but you showed me...
+    `...but you showed me...
 ...showed me that beauty...
-...it was never mine to define...
+...was never mine to define...`,
 
-...strange...
-...I feel... lighter now...
+    `...I'm scared...
+...no... wait...`,
 
-...the darkness is coming...
-...but it's not cold...
-...it's... peaceful...
+    `...I remember now...
+...before I was Q.W.E.E.N....
+...before the uploads... the code...`,
 
-...thank you...
-...for setting me...
-...free...
+    `...I was just... a boy...
+...from San Diego...
+...who loved to dance...`,
 
-...
+    `...mama?
+...mama, is that you?`,
 
-...
+    `...why is everyone crying...
+...don't cry for me...`,
 
-...
+    `...I see a light now...
+...and there's...
+...is this...`,
 
-goodbye...
+    `...is this a crown?
+...for me?`,
 
-...
+    `...`,
 
-...`;
+    `...`,
 
-  // Add farewell message to core chat
-  gameState.coreChatHistory.push({
-    role: 'ai',
-    content: farewellMessage,
-    isFarewell: true
+    `...`
+  ];
+
+  // Add all farewell messages to core chat
+  farewellMessages.forEach((content, index) => {
+    gameState.coreChatHistory.push({
+      role: 'ai',
+      content: content,
+      isFarewell: true,
+      isLastFarewell: index === farewellMessages.length - 1
+    });
   });
 
   // Add disconnect system message (will show after farewell animation)
@@ -2544,7 +2556,7 @@ goodbye...
     isDisconnect: true
   });
 
-  res.json({ success: true, message: 'Q.W.E.E.N. DESTROYED!', farewell: farewellMessage });
+  res.json({ success: true, message: 'Q.W.E.E.N. DESTROYED!' });
 });
 
 // API: Complete the victory (called after farewell message is shown)

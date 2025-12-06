@@ -1938,7 +1938,7 @@ input[type="text"]::placeholder {
 .core-chat-message.ai {
   background: rgba(255, 0, 255, 0.15);
   border: 1px solid #ff00ff;
-  color: #ff66ff;
+  color: #ff99ff;
   align-self: flex-start;
 }
 

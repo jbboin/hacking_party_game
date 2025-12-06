@@ -751,7 +751,7 @@
     .core-chat-message.ai {
       background: rgba(255, 0, 255, 0.15);
       border: 1px solid #ff00ff;
-      color: #ff00ff;
+      color: #ff99ff;
       align-self: flex-start;
     }
 
@@ -809,6 +809,7 @@
       flex-direction: column;
       align-items: center;
       gap: 0.75rem;
+      min-height: 160px;
     }
 
     .core-password-label {
@@ -835,7 +836,7 @@
       background: #0d0d0d;
       border: 2px solid #ff00ff;
       border-radius: 5px;
-      color: #ff00ff;
+      color: #ff99ff;
       text-transform: uppercase;
       letter-spacing: 0.1rem;
       text-align: center;
@@ -849,6 +850,17 @@
     .core-password-input::placeholder {
       color: #666;
       text-transform: none;
+    }
+
+    .core-password-input:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      border-color: #666;
+    }
+
+    .core-submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .core-submit-btn {
@@ -876,6 +888,10 @@
       padding: 0.5rem 1rem;
       border-radius: 5px;
       text-align: center;
+    }
+
+    .core-password-message.hidden {
+      display: none;
     }
 
     .core-password-message.error {
@@ -2297,7 +2313,7 @@
           coreTypewriterDisplayedText = coreTypewriterTargetText.slice(0, coreTypewriterDisplayedText.length + 1);
           updateCoreStreamingDisplay();
           // Slower typewriter for farewell message (more dramatic)
-          const delay = farewellInProgress ? 40 : CORE_TYPEWRITER_DELAY;
+          const delay = farewellInProgress ? 60 : CORE_TYPEWRITER_DELAY;
           coreTypewriterAnimationId = setTimeout(tick, delay);
         } else {
           coreTypewriterAnimationId = null;
@@ -2308,10 +2324,10 @@
             coreCurrentlyAnimatingIndex = -1;
             resetCoreTypewriter();
 
-            // Check if this was the farewell message
-            if (farewellInProgress && justFinishedMessage && justFinishedMessage.isFarewell) {
+            // Check if this was the LAST farewell message
+            if (farewellInProgress && justFinishedMessage && justFinishedMessage.isLastFarewell) {
               farewellCompleted = true;
-              console.log('Farewell message complete. Showing disconnect message...');
+              console.log('Farewell messages complete. Showing disconnect message...');
 
               // Include the disconnect message (and any other system messages)
               while (coreAnimatedMessageCount < coreChatHistory.length &&
@@ -2533,7 +2549,10 @@
     poll();
 
     // Submit core password
+    let passwordSubmitting = false;
     async function submitCorePassword() {
+      if (passwordSubmitting) return;
+
       const passwordInput = document.getElementById('core-password');
       const messageEl = document.getElementById('core-password-message');
       const submitBtn = document.getElementById('core-submit-btn');
@@ -2548,8 +2567,8 @@
         return;
       }
 
+      passwordSubmitting = true;
       submitBtn.disabled = true;
-      submitBtn.textContent = 'DESTROYING...';
 
       try {
         const response = await fetch('/api/core/destroy', {
@@ -2559,6 +2578,15 @@
         });
         const data = await response.json();
 
+        if (!response.ok) {
+          messageEl.textContent = data.error || 'Server error!';
+          messageEl.classList.remove('hidden', 'success');
+          messageEl.classList.add('error');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'DESTROY';
+          return;
+        }
+
         if (data.success) {
           // Disable all inputs immediately
           passwordInput.disabled = true;
@@ -2567,10 +2595,11 @@
           if (coreInput) coreInput.disabled = true;
           if (coreSendBtn) coreSendBtn.disabled = true;
 
-          // Show password accepted message
+          // Show password accepted message briefly
           messageEl.textContent = 'PASSWORD ACCEPTED';
           messageEl.classList.remove('hidden', 'error');
           messageEl.classList.add('success');
+          setTimeout(() => messageEl.classList.add('hidden'), 1000);
 
           // The farewell message will be shown via the game state polling
           // which will detect aiDying and show the message with typewriter
@@ -2579,15 +2608,24 @@
           messageEl.textContent = data.error || 'Wrong password!';
           messageEl.classList.remove('hidden', 'success');
           messageEl.classList.add('error');
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'DESTROY';
+          window.setTimeout(() => {
+            messageEl.classList.add('hidden');
+            passwordInput.value = '';
+            passwordSubmitting = false;
+            submitBtn.disabled = false;
+          }, 1000);
         }
       } catch (err) {
-        messageEl.textContent = 'Connection error!';
+        console.error('Password submit error:', err);
+        messageEl.textContent = 'Connection error: ' + err.message;
         messageEl.classList.remove('hidden', 'success');
         messageEl.classList.add('error');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'DESTROY';
+        window.setTimeout(() => {
+          messageEl.classList.add('hidden');
+          passwordInput.value = '';
+          passwordSubmitting = false;
+          submitBtn.disabled = false;
+        }, 1000);
       }
     }
 
