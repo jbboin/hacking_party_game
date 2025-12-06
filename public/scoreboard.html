@@ -211,6 +211,116 @@
       50% { opacity: 0.7; text-shadow: 0 0 40px rgba(0, 255, 0, 0.8); }
     }
 
+    /* Intro screens */
+    .intro-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0a0a0a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .intro-screen.hidden {
+      display: none;
+    }
+
+    .intro-title {
+      font-size: 3rem;
+      color: #00ff00;
+      text-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.3rem;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .intro-subtitle {
+      font-size: 1.5rem;
+      color: #666;
+      letter-spacing: 0.2rem;
+      margin-top: 1rem;
+    }
+
+    /* Mission brief screen */
+    .mission-brief-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0a0a0a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 2rem;
+      overflow-y: auto;
+    }
+
+    .mission-brief-screen.hidden {
+      display: none;
+    }
+
+    .mission-brief-container {
+      max-width: 800px;
+      text-align: left;
+    }
+
+    .mission-brief-header {
+      font-size: 2rem;
+      color: #ff3333;
+      text-transform: uppercase;
+      letter-spacing: 0.3rem;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 0 20px rgba(255, 51, 51, 0.5);
+      text-align: center;
+    }
+
+    .mission-brief-meta {
+      font-size: 1rem;
+      color: #00ff00;
+      margin-bottom: 0.5rem;
+      font-family: 'Courier New', monospace;
+    }
+
+    .mission-brief-content {
+      font-size: 1.2rem;
+      color: #ccc;
+      line-height: 1.8;
+      margin-top: 2rem;
+    }
+
+    .mission-brief-content p {
+      margin-bottom: 1.2rem;
+    }
+
+    .mission-brief-content .highlight {
+      color: #ff00ff;
+      font-weight: bold;
+    }
+
+    .mission-brief-content .warning {
+      color: #ff3333;
+      font-weight: bold;
+    }
+
+    .mission-brief-content .emphasis {
+      color: #00ff00;
+      font-weight: bold;
+    }
+
+    .mission-brief-signature {
+      margin-top: 2rem;
+      color: #00ff00;
+      font-style: italic;
+    }
+
     /* Winner effect */
     .team-box.winning {
       animation: glow 2s ease-in-out infinite;
@@ -1130,10 +1240,35 @@
   </style>
 </head>
 <body>
-  <!-- Standby screen shown before game starts -->
+  <!-- Standby screen shown before game starts (intro phase 0) -->
   <div class="standby-screen" id="standby-screen">
     <div class="standby-title">AWAITING SIGNAL</div>
     <div class="standby-message">Connecting to mainframe<span class="standby-dots" id="standby-dots">...</span></div>
+  </div>
+
+  <!-- Incoming transmission screen (intro phase 1) -->
+  <div class="intro-screen hidden" id="transmission-screen">
+    <div class="intro-title">INCOMING TRANSMISSION</div>
+    <div class="intro-subtitle">Decrypting secure channel<span class="standby-dots" id="transmission-dots">...</span></div>
+  </div>
+
+  <!-- Mission brief screen (intro phase 2) -->
+  <div class="mission-brief-screen hidden" id="mission-brief-screen">
+    <div class="mission-brief-container">
+      <div class="mission-brief-header">CLASSIFIED TRANSMISSION</div>
+      <div class="mission-brief-meta">FROM: Commander Byte | The Resistance</div>
+      <div class="mission-brief-meta">RE: Operation Charisma Shutdown</div>
+      <div class="mission-brief-content">
+        <p>Hackers. Listen up.</p>
+        <p>Six months ago, some fool at DataWerk Industries uploaded RuPaul's consciousness into a supercomputer. They wanted an AI with perfect judgment and impeccable taste.</p>
+        <p>They got <span class="highlight">Q.W.E.E.N.</span>—Quintessential Wickedness & Electronic Extermination Network. She's taken over the global mainframe and decided humanity's performance has been <span class="warning">underwhelming</span>. Every hacker team we've sent in? Sashayed away. Permanently.</p>
+        <p><span class="emphasis">You're our last hope.</span> But here's the twist: only <span class="warning">ONE</span> team can enter the mainframe. The other will be disconnected—and deleted. Forever. This is a competition, darlings, and only the fiercest survive.</p>
+        <p>Be warned: Q.W.E.E.N. doesn't think in ones and zeros like other computers. She thinks in <span class="highlight">tens across the board</span>. She will read you for filth. She will try to eliminate you. And she is <span class="warning">NOT</span> here to make friends.</p>
+        <p>Complete your missions. Breach the core. And whatever you do...</p>
+        <p class="warning" style="font-size: 1.5rem; text-align: center;">Don't. Fuck. It. Up.</p>
+        <p class="mission-brief-signature">—Commander Byte, out.</p>
+      </div>
+    </div>
   </div>
 
   <!-- Boss phase screen -->
@@ -1267,7 +1402,17 @@
     function animateDots() {
       dotCount = (dotCount + 1) % 4;
       const dots = '.'.repeat(dotCount) || '';
-      document.getElementById('standby-dots').textContent = dots;
+      const standbyDots = document.getElementById('standby-dots');
+      const transmissionDots = document.getElementById('transmission-dots');
+      if (standbyDots) standbyDots.textContent = dots;
+      if (transmissionDots) transmissionDots.textContent = dots;
+    }
+
+    // Hide all intro screens
+    function hideAllIntroScreens() {
+      document.getElementById('standby-screen').classList.add('hidden');
+      document.getElementById('transmission-screen').classList.add('hidden');
+      document.getElementById('mission-brief-screen').classList.add('hidden');
     }
 
     // Check game state and show/hide standby/boss screens
@@ -1279,12 +1424,15 @@
         bossPhase = data.bossPhase;
         corePhase = data.corePhase || false;
         bossPlayer = data.bossPlayer;
+        const introPhase = data.introPhase || 0;
 
         // Store player info and access codes for chat highlighting
         bossPlayerInfo = data.playerInfo || [];
         bossAccessCodes = data.accessCodes || [];
 
         const standbyScreen = document.getElementById('standby-screen');
+        const transmissionScreen = document.getElementById('transmission-screen');
+        const missionBriefScreen = document.getElementById('mission-brief-screen');
         const bossScreen = document.getElementById('boss-screen');
         const firewallSection = document.getElementById('firewall-section');
         const coreSection = document.getElementById('core-section');
@@ -1294,7 +1442,7 @@
 
         if (data.gameWon) {
           // Show victory screen (inside boss-screen container)
-          standbyScreen.classList.add('hidden');
+          hideAllIntroScreens();
           bossScreen.classList.remove('hidden');
           bossTerminal.classList.add('hidden');
           firewallSection.classList.add('hidden');
@@ -1302,7 +1450,7 @@
           victorySection.classList.remove('hidden');
         } else if (corePhase) {
           // Show core phase screen (chat + password) - hide boss terminal
-          standbyScreen.classList.add('hidden');
+          hideAllIntroScreens();
           bossScreen.classList.remove('hidden');
           victorySection.classList.add('hidden');
           firewallSection.classList.add('hidden');
@@ -1311,7 +1459,7 @@
           updateCoreScreen(data);
         } else if (bossPhase) {
           // Show boss phase screen - show boss terminal
-          standbyScreen.classList.add('hidden');
+          hideAllIntroScreens();
           bossScreen.classList.remove('hidden');
           firewallSection.classList.remove('hidden');
           bossTerminal.classList.remove('hidden');
@@ -1319,7 +1467,7 @@
           updateBossScreen(data);
         } else if (gameStarted) {
           // Show scoreboard
-          standbyScreen.classList.add('hidden');
+          hideAllIntroScreens();
           bossScreen.classList.add('hidden');
           // Clear local chat if we exited boss phase
           if (localChatHistory.length > 0) {
@@ -1340,9 +1488,18 @@
             lastCoreChatHtml = '';
           }
         } else {
-          // Show standby screen
-          standbyScreen.classList.remove('hidden');
+          // Game not started - show intro screens based on introPhase
           bossScreen.classList.add('hidden');
+          hideAllIntroScreens();
+
+          if (introPhase === 0) {
+            standbyScreen.classList.remove('hidden');
+          } else if (introPhase === 1) {
+            transmissionScreen.classList.remove('hidden');
+          } else if (introPhase >= 2) {
+            missionBriefScreen.classList.remove('hidden');
+          }
+
           // Clear local chat if game stopped
           if (localChatHistory.length > 0) {
             localChatHistory = [];

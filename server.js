@@ -334,6 +334,7 @@ const DESTRUCTION_PASSWORD = 'STONEWALL-2015';
 // Game state
 let gameState = {
   started: false,
+  introPhase: 0, // 0 = awaiting, 1 = transmission, 2 = mission brief, 3+ = scoreboard
   bossPhase: false,
   corePhase: false, // Final phase after firewall is down - password entry
   winningTeam: null, // The team that won (blue or red)
@@ -905,7 +906,8 @@ app.post('/api/game/reset', (req, res) => {
   });
   // Clear all active missions
   gameState.missions = {};
-  // Reset boss phase
+  // Reset all phases
+  gameState.introPhase = 0;
   gameState.bossPhase = false;
   gameState.corePhase = false;
   gameState.winningTeam = null;
@@ -1055,6 +1057,7 @@ app.get('/api/game', (req, res) => {
 
   res.json({
     started: gameState.started,
+    introPhase: gameState.introPhase,
     bossPhase: gameState.bossPhase,
     corePhase: gameState.corePhase,
     winningTeam: gameState.winningTeam,
@@ -1071,9 +1074,24 @@ app.get('/api/game', (req, res) => {
   });
 });
 
+// API: Advance intro phase (0 -> 1 -> 2 -> 3)
+app.post('/api/game/intro/next', (req, res) => {
+  gameState.introPhase = Math.min(gameState.introPhase + 1, 3);
+  console.log('Intro phase advanced to:', gameState.introPhase);
+  res.json({ success: true, introPhase: gameState.introPhase });
+});
+
+// API: Reset intro phase back to 0
+app.post('/api/game/intro/reset', (req, res) => {
+  gameState.introPhase = 0;
+  console.log('Intro phase reset to 0');
+  res.json({ success: true, introPhase: gameState.introPhase });
+});
+
 // API: Start game (assigns missions to all players)
 app.post('/api/game/start', (req, res) => {
   gameState.started = true;
+  gameState.introPhase = 3; // Ensure intro is complete when game starts
   gameState.missions = {};
 
   // Reset all player elimination states

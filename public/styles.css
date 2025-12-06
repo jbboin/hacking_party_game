@@ -1291,6 +1291,18 @@ input[type="text"]::placeholder {
   transition: all 0.2s ease;
 }
 
+.btn-intro {
+  background: transparent;
+  border: 2px solid #00ccff;
+  color: #00ccff;
+}
+
+.btn-intro:hover {
+  background: #00ccff;
+  color: var(--bg-dark);
+  box-shadow: 0 0 20px rgba(0, 204, 255, 0.5);
+}
+
 .btn-start {
   background: transparent;
   border: 2px solid var(--green);

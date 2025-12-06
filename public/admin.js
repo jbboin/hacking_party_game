@@ -1,6 +1,7 @@
 // Track boss mode and core phase state globally
 let isBossMode = false;
 let isCorePhase = false;
+let currentIntroPhase = 0;
 
 // Load game state
 async function loadGameState() {
@@ -11,7 +12,8 @@ async function loadGameState() {
     const wasCorePhase = isCorePhase;
     isBossMode = data.bossPhase || false;
     isCorePhase = data.corePhase || false;
-    updateGameUI(data.started, data.bossPhase, data.firewallHP, data.corePhase);
+    currentIntroPhase = data.introPhase || 0;
+    updateGameUI(data.started, data.bossPhase, data.firewallHP, data.corePhase, data.introPhase);
     // Reload guests if boss mode or core phase changed (to update buttons/status)
     if (wasBossMode !== isBossMode || wasCorePhase !== isCorePhase) {
       loadGuests();
@@ -22,8 +24,9 @@ async function loadGameState() {
 }
 
 // Update game UI based on state
-function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = false) {
+function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = false, introPhase = 0) {
   const statusEl = document.getElementById('game-status');
+  const nextIntroBtn = document.getElementById('next-intro-btn');
   const startBtn = document.getElementById('start-game-btn');
   const stopBtn = document.getElementById('stop-game-btn');
   const bossBtn = document.getElementById('boss-phase-btn');
@@ -32,9 +35,13 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = 
   const coreControlsBox = document.getElementById('core-controls-box');
   const scoresSection = document.getElementById('scores-section');
 
+  // Intro screen labels
+  const introLabels = ['AWAITING SIGNAL', 'TRANSMISSION', 'MISSION BRIEF'];
+
   if (corePhase) {
     statusEl.textContent = 'GAME: CORE PHASE';
     statusEl.className = 'game-status core';
+    if (nextIntroBtn) nextIntroBtn.classList.add('hidden');
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     bossBtn.classList.add('hidden');
@@ -45,6 +52,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = 
   } else if (bossPhase) {
     statusEl.textContent = 'GAME: BOSS PHASE';
     statusEl.className = 'game-status boss';
+    if (nextIntroBtn) nextIntroBtn.classList.add('hidden');
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     bossBtn.classList.add('hidden');
@@ -63,6 +71,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = 
   } else if (isRunning) {
     statusEl.textContent = 'GAME: RUNNING';
     statusEl.className = 'game-status running';
+    if (nextIntroBtn) nextIntroBtn.classList.add('hidden');
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     bossBtn.classList.remove('hidden');
@@ -71,9 +80,28 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = 
     if (coreControlsBox) coreControlsBox.classList.add('hidden');
     if (scoresSection) scoresSection.classList.remove('hidden');
   } else {
-    statusEl.textContent = 'GAME: STOPPED';
+    // Game not started - show intro phase controls
+    const introLabel = introLabels[introPhase] || 'READY';
+    statusEl.textContent = `INTRO: ${introLabel}`;
     statusEl.className = 'game-status stopped';
-    startBtn.classList.remove('hidden');
+
+    // Show NEXT INTRO until we reach phase 2 (mission brief), then show START GAME
+    if (nextIntroBtn) {
+      if (introPhase < 2) {
+        nextIntroBtn.classList.remove('hidden');
+        nextIntroBtn.textContent = 'NEXT INTRO';
+      } else {
+        nextIntroBtn.classList.add('hidden');
+      }
+    }
+
+    // Show START GAME only when intro is complete (phase >= 2)
+    if (introPhase >= 2) {
+      startBtn.classList.remove('hidden');
+    } else {
+      startBtn.classList.add('hidden');
+    }
+
     stopBtn.classList.add('hidden');
     bossBtn.classList.add('hidden');
     if (coreBtn) coreBtn.classList.add('hidden');
@@ -162,6 +190,21 @@ async function sendCoreGuidance() {
     }
   } catch (error) {
     console.error('Failed to send core AI guidance:', error);
+  }
+}
+
+// Advance intro phase
+async function nextIntro() {
+  try {
+    const response = await fetch('/api/game/intro/next', { method: 'POST' });
+    const data = await response.json();
+    if (data.success) {
+      currentIntroPhase = data.introPhase;
+      loadGameState();
+      console.log('Intro phase advanced to:', data.introPhase);
+    }
+  } catch (error) {
+    console.error('Failed to advance intro:', error);
   }
 }
 
