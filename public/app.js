@@ -784,6 +784,15 @@ async function checkBossPhase(playerId) {
 
     // Hide core phase box if not in core phase
     coreBox?.classList.add('hidden');
+    // Clear core chat state if we were in core phase
+    if (corePhaseActive) {
+      coreChatHistory = [];
+      coreAnimatedMessageCount = 0;
+      coreCurrentlyAnimatingIndex = -1;
+      coreIsFirstLoad = true;
+      resetCoreTypewriter();
+      lastCoreChatHtml = '';
+    }
     corePhaseActive = false;
 
     if (data.bossPhase) {
@@ -1458,10 +1467,11 @@ async function sendCoreMessage() {
   input.disabled = true;
 
   try {
+    const hackerName = localStorage.getItem('hackerName') || 'HACKER';
     const response = await fetch('/api/core/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message })
+      body: JSON.stringify({ message, senderName: hackerName })
     });
 
     const data = await response.json();

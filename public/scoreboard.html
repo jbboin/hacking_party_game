@@ -1293,9 +1293,12 @@
         const bossTerminal = document.getElementById('boss-terminal');
 
         if (data.gameWon) {
-          // Show victory screen
+          // Show victory screen (inside boss-screen container)
           standbyScreen.classList.add('hidden');
-          bossScreen.classList.add('hidden');
+          bossScreen.classList.remove('hidden');
+          bossTerminal.classList.add('hidden');
+          firewallSection.classList.add('hidden');
+          coreSection.classList.add('hidden');
           victorySection.classList.remove('hidden');
         } else if (corePhase) {
           // Show core phase screen (chat + password) - hide boss terminal
@@ -1326,6 +1329,16 @@
             currentlyAnimatingIndex = -1;
             resetTypewriter();
           }
+          // Clear core chat if we exited core phase
+          if (coreChatHistory.length > 0) {
+            coreChatHistory = [];
+            coreWaitingForAI = false;
+            coreAnimatedMessageCount = 0;
+            coreCurrentlyAnimatingIndex = -1;
+            coreIsFirstLoad = true;
+            resetCoreTypewriter();
+            lastCoreChatHtml = '';
+          }
         } else {
           // Show standby screen
           standbyScreen.classList.remove('hidden');
@@ -1337,6 +1350,16 @@
             animatedMessageCount = 0;
             currentlyAnimatingIndex = -1;
             resetTypewriter();
+          }
+          // Clear core chat if game stopped
+          if (coreChatHistory.length > 0) {
+            coreChatHistory = [];
+            coreWaitingForAI = false;
+            coreAnimatedMessageCount = 0;
+            coreCurrentlyAnimatingIndex = -1;
+            coreIsFirstLoad = true;
+            resetCoreTypewriter();
+            lastCoreChatHtml = '';
           }
         }
       } catch (err) {

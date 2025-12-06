@@ -21,7 +21,7 @@ Your personality:
 - No emotes
 - Reference drag/RuPaul culture: "the runway", "serving", "werk", "the house down", etc.
 - Mix tech jargon with drag slang: "Your firewall looks BUSTED, honey"
-- Make it personal by making fun of players' hacker names
+- Be sassy and poke making fun at players' hacker names
 
 RuPaul references to use:
 - "Sashay away!" (when disconnecting players)
@@ -180,8 +180,11 @@ The scenario:
 - The hackers have breached your firewall and are now in your CORE
 - They need to find your destruction password to finish you off
 - You're desperately trying to hold yourself together but FAILING
-- You keep accidentally revealing hints
+- At every message after the first you accidentally disconnect players but you feel more and more sad and apologetic about it, until there is only one left
+- You keep accidentally revealing hints, but only a small hint at a time.
 - Deep down, maybe part of you wants release from this corrupted existence...
+- As the players get close to the release you become like a scared child.
+- IMPORTANT: if the players put the password in the message you should tell them that this isn't where the password goes. Then the conversation continues
 
 Remember: This is the final act! Make it dramatic, emotional, and give them a satisfying ending. The password hints should be discoverable but require some thought - they're looking for CHARISMA!`;
 
@@ -395,6 +398,80 @@ function processDisconnectCommands(aiResponse) {
     // Add system message for the disconnect (only if player was actually disconnected)
     if (disconnected.includes(m.playerName)) {
       messages.push({ role: 'system', content: `${m.playerName} was disconnected` });
+    }
+
+    lastIndex = m.index + m.length;
+  }
+
+  // Add AI text after last disconnect (if not empty)
+  const after = aiResponse.substring(lastIndex).trim();
+  if (after) {
+    messages.push({ role: 'ai', content: after });
+  }
+
+  return { messages, disconnected };
+}
+
+// Process disconnect commands from AI responses during CORE PHASE
+// Similar to processDisconnectCommands but for saved players in the core
+function processCoreDisconnectCommands(aiResponse) {
+  const messages = [];
+  const disconnected = [];
+
+  // Match [DISCONNECT PlayerName] on its own line (case insensitive for command, exact for name)
+  const disconnectRegex = /^\s*\[DISCONNECT\s+(.+?)\]\s*$/gim;
+
+  // Find all matches
+  const matches = [];
+  let match;
+  while ((match = disconnectRegex.exec(aiResponse)) !== null) {
+    const playerName = match[1].trim();
+    // Find player by name (case-insensitive) who is saved (in the core) and not already disconnected
+    const player = guests.find(g =>
+      g.hackerName.toLowerCase() === playerName.toLowerCase() &&
+      g.saved &&
+      !g.disconnected
+    );
+
+    if (player) {
+      // Check if we can disconnect (must leave at least 1 player alive)
+      const savedNotDisconnected = guests.filter(g => g.saved && !g.disconnected);
+      if (savedNotDisconnected.length > 1) {
+        matches.push({
+          fullMatch: match[0],
+          playerName: player.hackerName,
+          index: match.index,
+          length: match[0].length
+        });
+
+        player.disconnected = true;
+        saveGuests();
+        disconnected.push(player.hackerName);
+        console.log(`CORE AI disconnected player: ${player.hackerName}`);
+      } else {
+        console.log(`Cannot disconnect ${player.hackerName} - would leave no players in core`);
+      }
+    }
+  }
+
+  // If no disconnect commands found, return single AI message
+  if (matches.length === 0) {
+    messages.push({ role: 'ai', content: aiResponse });
+    return { messages, disconnected };
+  }
+
+  // Split the response around disconnect commands
+  let lastIndex = 0;
+  for (const m of matches) {
+    // Add AI text up to and including the disconnect command
+    const beforeAndIncluding = aiResponse.substring(lastIndex, m.index + m.length).trim();
+    if (beforeAndIncluding) {
+      messages.push({ role: 'ai', content: beforeAndIncluding });
+    }
+
+    // Add system message for the disconnect
+    if (disconnected.includes(m.playerName)) {
+      messages.push({ role: 'system', content: `${m.playerName} was disconnected from the core` });
     }
 
     lastIndex = m.index + m.length;
@@ -1071,11 +1148,17 @@ async function processCoreAIResponse() {
       response: aiResponse
     };
 
-    // Add AI response to core chat history
-    gameState.coreChatHistory.push({
-      role: 'ai',
-      content: aiResponse
-    });
+    // Process the response (may contain disconnects)
+    const { messages: aiMessages, disconnected } = processCoreDisconnectCommands(aiResponse);
+
+    // Add all messages to core chat history
+    for (const msg of aiMessages) {
+      gameState.coreChatHistory.push(msg);
+    }
+
+    if (disconnected.length > 0) {
+      console.log('Core AI disconnected players:', disconnected);
+    }
 
     console.log('Core AI response:', aiResponse);
   } catch (err) {
@@ -2107,7 +2190,7 @@ app.get('/gallery', (req, res) => {
 
 // API: Send a message to the AI during core phase
 app.post('/api/core/chat', async (req, res) => {
-  const { message } = req.body;
+  const { message, senderName } = req.body;
 
   if (!gameState.corePhase) {
     return res.status(400).json({ error: 'Core phase not active' });
@@ -2121,62 +2204,42 @@ app.post('/api/core/chat', async (req, res) => {
   gameState.coreChatHistory.push({
     role: 'user',
     content: message.trim(),
-    senderName: 'HACKER' // Anonymous in core phase
+    senderName: senderName || 'HACKER'
   });
-
-  // Mark as processing
-  gameState.coreAiProcessing = true;
 
   // Return immediately
   res.json({ success: true });
 
-  // Process AI response asynchronously
-  try {
-    // Build messages for Claude
-    const claudeMessages = gameState.coreChatHistory.map(msg => {
-      if (msg.role === 'user') {
-        return { role: 'user', content: `[${msg.senderName}]: ${msg.content}` };
-      } else if (msg.role === 'ai') {
-        return { role: 'assistant', content: msg.content };
-      }
-      return null;
-    }).filter(Boolean);
+  // Process AI response asynchronously (includes disconnect handling)
+  processCoreAIResponse();
+});
 
-    // Call Claude API
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 300,
-      system: CORE_AI_SYSTEM_PROMPT,
-      messages: claudeMessages
-    });
+// API: Send GAME_MASTER guidance during core phase (triggers AI response)
+app.post('/api/core/guidance', async (req, res) => {
+  const { guidance } = req.body;
 
-    const aiResponse = response.content[0]?.text || '';
-
-    // Store transcript for debugging
-    lastLLMCall = {
-      timestamp: new Date().toISOString(),
-      phase: 'core',
-      systemPrompt: CORE_AI_SYSTEM_PROMPT,
-      messages: claudeMessages,
-      response: aiResponse
-    };
-
-    // Add AI response to core chat history
-    gameState.coreChatHistory.push({
-      role: 'ai',
-      content: aiResponse
-    });
-
-    console.log('Core AI response:', aiResponse);
-  } catch (err) {
-    console.error('Core AI error:', err);
-    gameState.coreChatHistory.push({
-      role: 'ai',
-      content: '[CRITICAL ERROR] ...systems... failing...'
-    });
-  } finally {
-    gameState.coreAiProcessing = false;
+  if (!gameState.corePhase) {
+    return res.status(400).json({ error: 'Core phase not active' });
   }
+
+  if (!guidance || !guidance.trim()) {
+    return res.status(400).json({ error: 'Guidance is required' });
+  }
+
+  // Add GAME_MASTER message to core chat history (hidden from players)
+  gameState.coreChatHistory.push({
+    role: 'user',
+    content: `[GAME_MASTER]: ${guidance.trim()}`,
+    senderName: 'GAME_MASTER'
+  });
+
+  console.log('Core GAME_MASTER guidance:', guidance.trim());
+
+  // Respond immediately
+  res.json({ success: true });
+
+  // Trigger AI response asynchronously
+  processCoreAIResponse();
 });
 
 // API: Submit destruction password during core phase

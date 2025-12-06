@@ -28,6 +28,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = 
   const bossBtn = document.getElementById('boss-phase-btn');
   const coreBtn = document.getElementById('core-phase-btn');
   const bossControlsBox = document.getElementById('boss-controls-box');
+  const coreControlsBox = document.getElementById('core-controls-box');
   const scoresSection = document.getElementById('scores-section');
 
   if (corePhase) {
@@ -38,6 +39,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = 
     bossBtn.classList.add('hidden');
     if (coreBtn) coreBtn.classList.add('hidden');
     bossControlsBox.classList.add('hidden');
+    if (coreControlsBox) coreControlsBox.classList.remove('hidden');
     if (scoresSection) scoresSection.classList.add('hidden');
   } else if (bossPhase) {
     statusEl.textContent = 'GAME: BOSS PHASE';
@@ -54,6 +56,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = 
       }
     }
     bossControlsBox.classList.remove('hidden');
+    if (coreControlsBox) coreControlsBox.classList.add('hidden');
     if (scoresSection) scoresSection.classList.add('hidden');
     updateFirewallHPDisplay(firewallHP);
   } else if (isRunning) {
@@ -64,6 +67,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = 
     bossBtn.classList.remove('hidden');
     if (coreBtn) coreBtn.classList.add('hidden');
     bossControlsBox.classList.add('hidden');
+    if (coreControlsBox) coreControlsBox.classList.add('hidden');
     if (scoresSection) scoresSection.classList.remove('hidden');
   } else {
     statusEl.textContent = 'GAME: STOPPED';
@@ -73,6 +77,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = 
     bossBtn.classList.add('hidden');
     if (coreBtn) coreBtn.classList.add('hidden');
     bossControlsBox.classList.add('hidden');
+    if (coreControlsBox) coreControlsBox.classList.add('hidden');
     if (scoresSection) scoresSection.classList.remove('hidden');
   }
 }
@@ -113,7 +118,7 @@ async function setFirewallHP(hp) {
   }
 }
 
-// Send AI guidance (queued for next batch, then cleared)
+// Send AI guidance for boss phase (queued for next batch, then cleared)
 async function sendAiGuidance() {
   const input = document.getElementById('ai-guidance-input');
   const guidance = input.value.trim();
@@ -133,6 +138,29 @@ async function sendAiGuidance() {
     }
   } catch (error) {
     console.error('Failed to send AI guidance:', error);
+  }
+}
+
+// Send AI guidance for core phase (triggers immediate AI response)
+async function sendCoreGuidance() {
+  const input = document.getElementById('core-guidance-input');
+  const guidance = input.value.trim();
+
+  if (!guidance) return;
+
+  try {
+    const response = await fetch('/api/core/guidance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guidance })
+    });
+    const data = await response.json();
+    if (data.success) {
+      input.value = ''; // Clear input after sending
+      console.log('Core AI guidance sent:', guidance);
+    }
+  } catch (error) {
+    console.error('Failed to send core AI guidance:', error);
   }
 }
 
