@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome Hackers - Instructions</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: white;
+      color: black;
+      font-family: 'Courier New', monospace;
+      padding: 40px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 1.2rem;
+      color: #666;
+      margin-bottom: 40px;
+    }
+    .instructions {
+      list-style: none;
+    }
+    .instruction {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 35px;
+      page-break-inside: avoid;
+    }
+    .step-number {
+      font-size: 2.5rem;
+      font-weight: bold;
+      min-width: 60px;
+      color: #000;
+    }
+    .step-content {
+      flex: 1;
+    }
+    .step-title {
+      font-size: 1.4rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .step-description {
+      font-size: 1.1rem;
+      color: #444;
+      line-height: 1.5;
+    }
+    .team-blue {
+      color: #0066cc;
+      font-weight: bold;
+    }
+    .team-red {
+      color: #cc0000;
+      font-weight: bold;
+    }
+    .qr-section {
+      text-align: center;
+      margin: 20px 0;
+    }
+    .qr-section img {
+      width: 180px;
+      height: 180px;
+    }
+    .qr-url {
+      font-size: 1rem;
+      color: #666;
+      margin-top: 10px;
+    }
+    .print-btn {
+      display: block;
+      margin: 30px auto;
+      padding: 15px 30px;
+      font-size: 1.2rem;
+      background: #000;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .print-btn:hover {
+      background: #333;
+    }
+    @media print {
+      .print-btn { display: none; }
+      body { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Welcome, Hacker</h1>
+  <p class="subtitle">Follow these steps to join the mission</p>
+
+  <button class="print-btn" onclick="window.print()">PRINT THIS PAGE</button>
+
+  <ol class="instructions">
+    <li class="instruction">
+      <span class="step-number">1.</span>
+      <div class="step-content">
+        <div class="step-title"><span class="team-blue">Blue Pill</span> or <span class="team-red">Red Pill</span>?</div>
+        <div class="step-description">Choose your team wisely. Only one team will breach the mainframe.</div>
+      </div>
+    </li>
+
+    <li class="instruction">
+      <span class="step-number">2.</span>
+      <div class="step-content">
+        <div class="step-title">Scan the QR Code</div>
+        <div class="step-description">Connect to the WiFi, then scan to access the hackerspace.</div>
+        <div class="qr-section">
+          <img id="join-qr" alt="Join QR Code">
+          <div class="qr-url" id="join-url"></div>
+        </div>
+      </div>
+    </li>
+
+    <li class="instruction">
+      <span class="step-number">3.</span>
+      <div class="step-content">
+        <div class="step-title">Log into the Hackerspace</div>
+        <div class="step-description">Enter your hacker alias and select your team to initialize your connection.</div>
+      </div>
+    </li>
+
+    <li class="instruction">
+      <span class="step-number">4.</span>
+      <div class="step-content">
+        <div class="step-title">Claim Your Cup</div>
+        <div class="step-description">Pick a cup matching your team color (<span class="team-blue">BLUE</span> or <span class="team-red">RED</span>) and write your name on it with a sharpie.</div>
+      </div>
+    </li>
+  </ol>
+
+  <script>
+    const baseUrl = `http://${window.location.hostname}:${window.location.port || 3000}`;
+    document.getElementById('join-url').textContent = baseUrl;
+    document.getElementById('join-qr').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(baseUrl)}`;
+  </script>
+</body>
+</html>

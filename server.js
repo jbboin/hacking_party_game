@@ -2394,6 +2394,11 @@ app.get('/qr/print', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'qr-print.html'));
 });
 
+// Serve instructions page (for printing)
+app.get('/instructions', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'instructions.html'));
+});
+
 // Serve scoreboard page
 app.get('/scoreboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'scoreboard.html'));
