@@ -282,7 +282,8 @@ const TERMINALS = [
   'centrifuge',     // washing machine
   'rain-chamber',   // shower
   'airlock',        // exit door
-  'nutrient-bank'   // pantry
+  'nutrient-bank',  // pantry
+  'replicator'      // 3D printer
 ];
 
 // Terminal URL slugs - obfuscated to prevent guessing
@@ -297,7 +298,8 @@ const TERMINAL_SLUGS = {
   'centrifuge': 'cf1r',
   'rain-chamber': 'rc6y',
   'airlock': 'al0z',
-  'nutrient-bank': 'nb3d'
+  'nutrient-bank': 'nb3d',
+  'replicator': 'rp4m'
 };
 
 // Reverse lookup: slug -> terminal name

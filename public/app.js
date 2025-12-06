@@ -10,7 +10,8 @@ const terminalNames = {
   'centrifuge': 'CENTRIFUGE',
   'rain-chamber': 'RAIN-CHAMBER',
   'airlock': 'AIRLOCK',
-  'nutrient-bank': 'NUTRIENT-BANK'
+  'nutrient-bank': 'NUTRIENT-BANK',
+  'replicator': 'REPLICATOR'
 };
 
 // Hacker name suggestions for the uninspired
