@@ -285,6 +285,26 @@ const TERMINALS = [
   'nutrient-bank'   // pantry
 ];
 
+// Terminal URL slugs - obfuscated to prevent guessing
+const TERMINAL_SLUGS = {
+  'permafrost': 'px7f',
+  'radiation-pod': 'rm3k',
+  'player-one': 'pq9w',
+  'junk-sector': 'jx2v',
+  'pixel-wall': 'pw4n',
+  'char-module': 'cm8h',
+  'evacuation-bay': 'eb5t',
+  'centrifuge': 'cf1r',
+  'rain-chamber': 'rc6y',
+  'airlock': 'al0z',
+  'nutrient-bank': 'nb3d'
+};
+
+// Reverse lookup: slug -> terminal name
+const SLUG_TO_TERMINAL = Object.fromEntries(
+  Object.entries(TERMINAL_SLUGS).map(([name, slug]) => [slug, name])
+);
+
 // Photo poses for photo missions
 const PHOTO_POSES = [
   'doing a thumbs up',
@@ -1003,6 +1023,7 @@ function assignMission(playerId, withCooldown = false) {
           targetPlayerId: target.id,
           targetPlayerName: target.hackerName,
           terminalId: terminal,
+          terminalSlug: TERMINAL_SLUGS[terminal], // Obfuscated URL slug
           completed: false
         };
       }
@@ -1896,12 +1917,14 @@ app.get('/api/player/:id', (req, res) => {
   });
 });
 
-// API: Validate terminal password
-app.post('/api/terminal/:terminalId/validate', (req, res) => {
-  const { terminalId } = req.params;
+// API: Validate terminal password (uses obfuscated slugs)
+app.post('/api/terminal/:slug/validate', (req, res) => {
+  const { slug } = req.params;
   const { playerId, code } = req.body;
 
-  if (!TERMINALS.includes(terminalId)) {
+  // Translate slug to terminal name
+  const terminalId = SLUG_TO_TERMINAL[slug];
+  if (!terminalId) {
     return res.status(400).json({ error: 'Invalid terminal' });
   }
 
@@ -2328,10 +2351,11 @@ app.get('/api/photos', (req, res) => {
   }
 });
 
-// Serve terminal page
-app.get('/terminal/:terminalId', (req, res) => {
-  const { terminalId } = req.params;
-  if (!TERMINALS.includes(terminalId)) {
+// Serve terminal page (uses obfuscated slugs)
+app.get('/terminal/:slug', (req, res) => {
+  const { slug } = req.params;
+  // Check if slug is valid
+  if (!SLUG_TO_TERMINAL[slug]) {
     return res.status(404).send('Terminal not found');
   }
   res.sendFile(path.join(__dirname, 'public', 'terminal.html'));
@@ -2342,9 +2366,14 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// Serve QR code page
+// Serve QR code page (for joining)
 app.get('/qr', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'qr.html'));
+});
+
+// Serve QR codes print page (for terminals)
+app.get('/qr/print', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'qr-print.html'));
 });
 
 // Serve scoreboard page

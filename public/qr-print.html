@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Print Terminal QR Codes</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: white;
+      color: black;
+      font-family: 'Courier New', monospace;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 24px;
+    }
+    .subtitle {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #666;
+      font-size: 14px;
+    }
+    .qr-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 30px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .qr-item {
+      border: 2px solid #000;
+      padding: 15px;
+      text-align: center;
+      page-break-inside: avoid;
+    }
+    .qr-item img {
+      width: 150px;
+      height: 150px;
+      display: block;
+      margin: 0 auto 10px;
+    }
+    .terminal-name {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .terminal-hint {
+      font-size: 11px;
+      color: #666;
+      font-style: italic;
+    }
+    .join-section {
+      margin-top: 40px;
+      padding-top: 30px;
+      border-top: 3px solid #000;
+      text-align: center;
+    }
+    .join-section h2 {
+      margin-bottom: 15px;
+    }
+    .join-section img {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 10px;
+      display: block;
+    }
+    .join-url {
+      font-size: 16px;
+      font-weight: bold;
+    }
+    @media print {
+      body { padding: 10px; }
+      .qr-grid { gap: 20px; }
+      .qr-item { padding: 10px; }
+      .qr-item img { width: 120px; height: 120px; }
+      .join-section { page-break-before: always; }
+    }
+    .print-btn {
+      display: block;
+      margin: 20px auto;
+      padding: 15px 30px;
+      font-size: 18px;
+      background: #000;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .print-btn:hover {
+      background: #333;
+    }
+    @media print {
+      .print-btn { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <h1>TERMINAL QR CODES</h1>
+  <p class="subtitle">Print and place at each location</p>
+
+  <button class="print-btn" onclick="window.print()">PRINT THIS PAGE</button>
+
+  <div class="qr-grid" id="qr-grid">
+    <!-- QR codes will be generated here -->
+  </div>
+
+  <div class="join-section">
+    <h2>JOIN THE GAME</h2>
+    <div id="join-qr-container">
+      <img id="join-qr" alt="Join QR Code">
+    </div>
+    <p class="join-url" id="join-url"></p>
+  </div>
+
+  <script>
+    // Terminal slugs and their display names with hints
+    const terminals = [
+      { slug: 'px7f', name: 'PERMAFROST', hint: 'freezer' },
+      { slug: 'rm3k', name: 'RADIATION-POD', hint: 'microwave' },
+      { slug: 'pq9w', name: 'PLAYER-ONE', hint: 'PS5' },
+      { slug: 'jx2v', name: 'JUNK-SECTOR', hint: 'trash' },
+      { slug: 'pw4n', name: 'PIXEL-WALL', hint: 'TV' },
+      { slug: 'cm8h', name: 'CHAR-MODULE', hint: 'toaster' },
+      { slug: 'eb5t', name: 'EVACUATION-BAY', hint: 'toilet' },
+      { slug: 'cf1r', name: 'CENTRIFUGE', hint: 'washing machine' },
+      { slug: 'rc6y', name: 'RAIN-CHAMBER', hint: 'shower' },
+      { slug: 'al0z', name: 'AIRLOCK', hint: 'exit door' },
+      { slug: 'nb3d', name: 'NUTRIENT-BANK', hint: 'pantry' }
+    ];
+
+    const baseUrl = `http://${window.location.hostname}:${window.location.port || 3000}`;
+    const grid = document.getElementById('qr-grid');
+
+    // Generate terminal QR codes
+    terminals.forEach(terminal => {
+      const terminalUrl = `${baseUrl}/terminal/${terminal.slug}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(terminalUrl)}`;
+
+      const item = document.createElement('div');
+      item.className = 'qr-item';
+      item.innerHTML = `
+        <img src="${qrUrl}" alt="${terminal.name} QR">
+        <div class="terminal-name">${terminal.name}</div>
+        <div class="terminal-hint">(${terminal.hint})</div>
+      `;
+      grid.appendChild(item);
+    });
+
+    // Generate join QR code
+    document.getElementById('join-url').textContent = baseUrl;
+    document.getElementById('join-qr').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}`;
+  </script>
+</body>
+</html>

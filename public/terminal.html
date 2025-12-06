@@ -118,23 +118,23 @@
   </div>
 
   <script>
-    // Get terminal ID from URL
+    // Get terminal slug from URL
     const pathParts = window.location.pathname.split('/');
-    const terminalId = pathParts[pathParts.length - 1];
+    const terminalSlug = pathParts[pathParts.length - 1];
 
-    // Terminal display names (cryptic location hints)
-    const terminalNames = {
-      'permafrost': 'PERMAFROST',
-      'radiation-pod': 'RADIATION-POD',
-      'player-one': 'PLAYER-ONE',
-      'junk-sector': 'JUNK-SECTOR',
-      'pixel-wall': 'PIXEL-WALL',
-      'char-module': 'CHAR-MODULE',
-      'evacuation-bay': 'EVACUATION-BAY',
-      'centrifuge': 'CENTRIFUGE',
-      'rain-chamber': 'RAIN-CHAMBER',
-      'airlock': 'AIRLOCK',
-      'nutrient-bank': 'NUTRIENT-BANK'
+    // Slug to terminal display name mapping
+    const slugToTerminal = {
+      'px7f': 'PERMAFROST',
+      'rm3k': 'RADIATION-POD',
+      'pq9w': 'PLAYER-ONE',
+      'jx2v': 'JUNK-SECTOR',
+      'pw4n': 'PIXEL-WALL',
+      'cm8h': 'CHAR-MODULE',
+      'eb5t': 'EVACUATION-BAY',
+      'cf1r': 'CENTRIFUGE',
+      'rc6y': 'RAIN-CHAMBER',
+      'al0z': 'AIRLOCK',
+      'nb3d': 'NUTRIENT-BANK'
     };
 
     // Check if player is logged in
@@ -144,7 +144,7 @@
       document.getElementById('not-logged-in').classList.remove('hidden');
     } else {
       document.getElementById('terminal-screen').classList.remove('hidden');
-      document.getElementById('terminal-name').textContent = terminalNames[terminalId] || 'UNKNOWN TERMINAL';
+      document.getElementById('terminal-name').textContent = slugToTerminal[terminalSlug] || 'UNKNOWN TERMINAL';
     }
 
     // Handle form submission
@@ -157,7 +157,7 @@
       if (!code) return;
 
       try {
-        const response = await fetch(`/api/terminal/${terminalId}/validate`, {
+        const response = await fetch(`/api/terminal/${terminalSlug}/validate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ playerId: parseInt(playerId), code })
