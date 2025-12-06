@@ -785,6 +785,24 @@
       50% { text-shadow: 0 0 20px rgba(0, 255, 0, 0.9); }
     }
 
+    /* Chat Highlighting Styles */
+    .player-name {
+      font-weight: bold;
+    }
+
+    .player-name-blue {
+      color: #4488ff;
+    }
+
+    .player-name-red {
+      color: #ff4444;
+    }
+
+    .access-code-highlight {
+      font-weight: bold;
+      color: #00ff00;
+    }
+
   </style>
 </head>
 <body>
@@ -869,6 +887,10 @@
     let prevBlueOrder = [];
     let prevRedOrder = [];
 
+    // Player info and access codes for chat highlighting
+    let bossPlayerInfo = [];
+    let bossAccessCodes = [];
+
     // Animate the dots on standby screen
     function animateDots() {
       dotCount = (dotCount + 1) % 4;
@@ -884,6 +906,10 @@
         gameStarted = data.started;
         bossPhase = data.bossPhase;
         bossPlayer = data.bossPlayer;
+
+        // Store player info and access codes for chat highlighting
+        bossPlayerInfo = data.playerInfo || [];
+        bossAccessCodes = data.accessCodes || [];
 
         const standbyScreen = document.getElementById('standby-screen');
         const bossScreen = document.getElementById('boss-screen');
@@ -1249,7 +1275,7 @@
       const chatContainer = document.getElementById('boss-chat');
       const streamingDiv = chatContainer.querySelector('.chat-message.ai.streaming .content');
       if (streamingDiv) {
-        streamingDiv.innerHTML = formatWithNewlines(typewriterDisplayedText) + '<span class="streaming-cursor">_</span>';
+        streamingDiv.innerHTML = formatWithNewlines(typewriterDisplayedText, true) + '<span class="streaming-cursor">_</span>';
         chatContainer.scrollTop = chatContainer.scrollHeight;
       }
     }
@@ -1324,7 +1350,7 @@
           return `
           <div class="chat-message user">
             <div class="sender">${escapeHtml(msg.senderName || 'HACKER')}</div>
-            <div class="content">${escapeHtml(msg.content)}</div>
+            <div class="content">${formatWithNewlines(msg.content, false)}</div>
           </div>
         `;
         }
@@ -1332,7 +1358,7 @@
         return `
         <div class="chat-message ai">
           <div class="sender">ROGUE AI</div>
-          <div class="content">${formatWithNewlines(msg.content)}</div>
+          <div class="content">${formatWithNewlines(msg.content, true)}</div>
         </div>
       `;
       }).join('');
@@ -1344,7 +1370,7 @@
           html += `
           <div class="chat-message ai streaming">
             <div class="sender">ROGUE AI</div>
-            <div class="content">${formatWithNewlines(typewriterDisplayedText)}<span class="streaming-cursor">_</span></div>
+            <div class="content">${formatWithNewlines(typewriterDisplayedText, true)}<span class="streaming-cursor">_</span></div>
           </div>
           `;
         } else if (waitingForAI) {
@@ -1488,8 +1514,39 @@
       return div.innerHTML;
     }
 
-    function formatWithNewlines(text) {
-      return escapeHtml(text).replace(/\n/g, '<br>');
+    function escapeRegex(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function formatWithNewlines(text, isAiMessage = false) {
+      let result = escapeHtml(text);
+
+      // Highlight player names in bold with team color (case-insensitive)
+      for (const player of bossPlayerInfo) {
+        if (player.name) {
+          const colorClass = player.team === 'blue' ? 'player-name-blue' : 'player-name-red';
+          const escapedName = escapeHtml(player.name);
+          // Use word boundary to match whole names only, case-insensitive
+          const regex = new RegExp(`\\b${escapeRegex(escapedName)}\\b`, 'gi');
+          result = result.replace(regex, `<span class="player-name ${colorClass}">$&</span>`);
+        }
+      }
+
+      // Highlight access codes in bold green (only in AI messages, only from non-disconnected players)
+      if (isAiMessage) {
+        // Get access codes from non-disconnected players
+        // Note: We include saved players because they may have JUST been saved by this message
+        const activeAccessCodes = bossPlayerInfo
+          .filter(p => p.accessCode && !p.disconnected)
+          .map(p => p.accessCode);
+
+        for (const code of activeAccessCodes) {
+          const regex = new RegExp(`\\b${escapeRegex(code)}\\b`, 'gi');
+          result = result.replace(regex, `<span class="access-code-highlight">$&</span>`);
+        }
+      }
+
+      return result.replace(/\n/g, '<br>');
     }
 
     // Submit destruction password to destroy the AI

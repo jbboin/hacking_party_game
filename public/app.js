@@ -183,8 +183,39 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function formatWithNewlines(text) {
-  return escapeHtml(text).replace(/\n/g, '<br>');
+function formatWithNewlines(text, isAiMessage = false) {
+  let result = escapeHtml(text);
+
+  // Highlight player names in bold with team color (case-insensitive)
+  for (const player of bossPlayerInfo) {
+    if (player.name) {
+      const colorClass = player.team === 'blue' ? 'player-name-blue' : 'player-name-red';
+      const escapedName = escapeHtml(player.name);
+      // Use word boundary to match whole names only, case-insensitive
+      const regex = new RegExp(`\\b${escapeRegex(escapedName)}\\b`, 'gi');
+      result = result.replace(regex, `<span class="player-name ${colorClass}">$&</span>`);
+    }
+  }
+
+  // Highlight access codes in bold green (only in AI messages, only from non-disconnected players)
+  if (isAiMessage) {
+    // Get access codes from non-disconnected players
+    // Note: We include saved players because they may have JUST been saved by this message
+    const activeAccessCodes = bossPlayerInfo
+      .filter(p => p.accessCode && !p.disconnected)
+      .map(p => p.accessCode);
+
+    for (const code of activeAccessCodes) {
+      const regex = new RegExp(`\\b${escapeRegex(code)}\\b`, 'gi');
+      result = result.replace(regex, `<span class="access-code-highlight">$&</span>`);
+    }
+  }
+
+  return result.replace(/\n/g, '<br>');
+}
+
+function escapeRegex(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // Submit trivia answer
@@ -696,6 +727,8 @@ let bossChatHistory = [];
 let bossAiProcessing = false;
 let bossStreamingText = ''; // Partial AI response as it streams
 let playerTeam = localStorage.getItem('team');
+let bossPlayerInfo = []; // Player info for chat highlighting
+let bossAccessCodes = []; // Access codes for AI highlighting
 
 // Check boss phase status
 async function checkBossPhase(playerId) {
@@ -804,6 +837,10 @@ async function checkBossPhase(playerId) {
       const serverAiProcessing = data.aiProcessing || false;
       const serverStreamingText = data.streamingText || '';
 
+      // Store player info and access codes for chat highlighting
+      bossPlayerInfo = data.playerInfo || [];
+      bossAccessCodes = data.accessCodes || [];
+
       // Re-render if chat changed, AI processing state changed, or streaming text updated
       if (JSON.stringify(serverChat) !== JSON.stringify(bossChatHistory) ||
           serverAiProcessing !== bossAiProcessing ||
@@ -871,7 +908,7 @@ function updateStreamingDisplay() {
   const container = document.getElementById('boss-chat-container');
   const streamingDiv = container.querySelector('.boss-chat-message.streaming .content');
   if (streamingDiv) {
-    streamingDiv.innerHTML = formatWithNewlines(typewriterDisplayedText) + '<span class="streaming-cursor">_</span>';
+    streamingDiv.innerHTML = formatWithNewlines(typewriterDisplayedText, true) + '<span class="streaming-cursor">_</span>';
     container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
   }
 }
@@ -952,7 +989,7 @@ function renderBossChat() {
       return `
       <div class="boss-chat-message user${isNew ? ' new-message' : ''}">
         <div class="sender">${escapeHtml(msg.senderName || 'HACKER')}</div>
-        <div class="content">${escapeHtml(msg.content)}</div>
+        <div class="content">${formatWithNewlines(msg.content, false)}</div>
       </div>
     `;
     }
@@ -961,7 +998,7 @@ function renderBossChat() {
     return `
     <div class="boss-chat-message ai${isNew ? ' new-message' : ''}">
       <div class="sender">ROGUE AI</div>
-      <div class="content">${formatWithNewlines(msg.content)}</div>
+      <div class="content">${formatWithNewlines(msg.content, true)}</div>
     </div>
   `;
   }).join('');
@@ -974,7 +1011,7 @@ function renderBossChat() {
       html += `
       <div class="boss-chat-message ai streaming new-message">
         <div class="sender">ROGUE AI</div>
-        <div class="content">${formatWithNewlines(displayText)}<span class="streaming-cursor">_</span></div>
+        <div class="content">${formatWithNewlines(displayText, true)}<span class="streaming-cursor">_</span></div>
       </div>
       `;
       lastRenderedStreamingText = bossStreamingText;

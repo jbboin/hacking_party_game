@@ -2679,3 +2679,21 @@ input[type="text"]::placeholder {
   }
 }
 
+/* Chat Highlighting Styles */
+.player-name {
+  font-weight: bold;
+}
+
+.player-name-blue {
+  color: var(--team-blue);
+}
+
+.player-name-red {
+  color: var(--team-red);
+}
+
+.access-code-highlight {
+  font-weight: bold;
+  color: #00ff00;
+}
+
