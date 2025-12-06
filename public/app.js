@@ -775,6 +775,24 @@ async function checkBossPhase(playerId) {
     const notWinningMsg = document.getElementById('boss-not-winning');
     const disconnectedBox = document.getElementById('disconnected-box');
     const savedBox = document.getElementById('saved-box');
+    const victorySection = document.getElementById('victory-section');
+
+    // Check if game has been won - show victory screen to ALL players
+    if (data.gameWon) {
+      victorySection.classList.remove('hidden');
+      // Hide everything else
+      bossBox?.classList.add('hidden');
+      coreBox?.classList.add('hidden');
+      disconnectedBox?.classList.add('hidden');
+      savedBox?.classList.add('hidden');
+      document.getElementById('mission-box')?.classList.add('hidden');
+      document.getElementById('hack-box')?.classList.add('hidden');
+      document.getElementById('waiting-box')?.classList.add('hidden');
+      document.getElementById('verifications-box')?.classList.add('hidden');
+      document.getElementById('access-code-box')?.classList.add('hidden');
+      document.getElementById('destruction-box')?.classList.add('hidden');
+      return;
+    }
 
     // Handle core phase (separate from boss phase)
     if (data.corePhase) {

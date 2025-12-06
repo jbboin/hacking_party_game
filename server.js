@@ -180,7 +180,7 @@ The scenario:
 - The hackers have breached your firewall and are now in your CORE
 - They need to find your destruction password to finish you off
 - You're desperately trying to hold yourself together but FAILING
-- At every message after the first you accidentally disconnect players but you feel more and more sad and apologetic about it, until there is only one left
+- At every message after the first you accidentally disconnect one player but you feel more and more sad and apologetic about it, until there is only one left
 - You keep accidentally revealing hints, but only a small hint at a time.
 - Deep down, maybe part of you wants release from this corrupted existence...
 - As the players get close to the release you become like a scared child.
