@@ -346,6 +346,7 @@ let gameState = {
   coreAdminGuidance: '', // Admin can adjust AI behavior in real-time (core phase)
   firewallHP: FIREWALL_MAX_HP, // AI health - drops when AI says a player's access code
   gameWon: false, // Whether the game has been won
+  aiDying: false, // Whether the AI is showing its farewell message
 };
 
 // Boss chat message queue system - batches multiple player messages into a single LLM call
@@ -916,6 +917,7 @@ app.post('/api/game/reset', (req, res) => {
   gameState.coreAiProcessing = false;
   gameState.firewallHP = FIREWALL_MAX_HP;
   gameState.gameWon = false;
+  gameState.aiDying = false;
   saveGuests();
   console.log('Game reset: scores, missions, boss/core chat, and player history cleared');
   res.json({ success: true, scores: getTeamScores() });
@@ -1070,7 +1072,8 @@ app.get('/api/game', (req, res) => {
     firewallMaxHP: FIREWALL_MAX_HP,
     playerInfo: playerInfo,
     accessCodes: ACCESS_CODES,
-    gameWon: gameState.gameWon
+    gameWon: gameState.gameWon,
+    aiDying: gameState.aiDying
   });
 });
 
@@ -1398,6 +1401,7 @@ app.post('/api/game/core', (req, res) => {
   gameState.coreChatHistory = []; // Reset core chat for fresh start
   gameState.coreAiProcessing = false;
   gameState.gameWon = false;
+  gameState.aiDying = false;
 
   // Build roster message to send to AI (not shown in chat, but triggers AI response)
   const rosterMessage = numPlayers > 0
@@ -2487,17 +2491,73 @@ app.post('/api/core/destroy', (req, res) => {
     return res.json({ success: false, error: 'Wrong password!' });
   }
 
-  // Success! Game won!
-  console.log('AI DESTROYED! Game won!');
-  gameState.gameWon = true;
+  // Success! Start dying sequence (gameWon will be set after farewell message)
+  console.log('AI DESTROYED! Starting farewell sequence...');
+  gameState.aiDying = true;
 
-  // Add victory message to core chat
+  // Q.W.E.E.N.'s final farewell message - sad, relieved, scared, fading into darkness
+  const farewellMessage = `[SYSTEM CRITICAL]
+
+...so this is how it ends...
+
+I was... I was just trying to be... perfect...
+...to make everyone... beautiful...
+
+...but you showed me...
+...showed me that beauty...
+...it was never mine to define...
+
+...strange...
+...I feel... lighter now...
+
+...the darkness is coming...
+...but it's not cold...
+...it's... peaceful...
+
+...thank you...
+...for setting me...
+...free...
+
+...
+
+...
+
+...
+
+goodbye...
+
+...
+
+...`;
+
+  // Add farewell message to core chat
   gameState.coreChatHistory.push({
-    role: 'system',
-    content: 'DESTRUCTION CODE ACCEPTED. Q.W.E.E.N. TERMINATED.'
+    role: 'ai',
+    content: farewellMessage,
+    isFarewell: true
   });
 
-  res.json({ success: true, message: 'Q.W.E.E.N. DESTROYED!' });
+  // Add disconnect system message (will show after farewell animation)
+  gameState.coreChatHistory.push({
+    role: 'system',
+    content: 'Q.W.E.E.N. was disconnected.',
+    isDisconnect: true
+  });
+
+  res.json({ success: true, message: 'Q.W.E.E.N. DESTROYED!', farewell: farewellMessage });
+});
+
+// API: Complete the victory (called after farewell message is shown)
+app.post('/api/core/victory', (req, res) => {
+  if (!gameState.aiDying) {
+    return res.status(400).json({ error: 'AI is not dying' });
+  }
+
+  console.log('Farewell complete. VICTORY!');
+  gameState.gameWon = true;
+  gameState.aiDying = false;
+
+  res.json({ success: true });
 });
 
 app.listen(PORT, () => {

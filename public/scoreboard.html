@@ -1437,6 +1437,8 @@
     let coreTypewriterDisplayedText = '';
     let coreTypewriterAnimationId = null;
     let lastCoreChatHtml = '';
+    let farewellInProgress = false;
+    let farewellCompleted = false;
 
     // Animate the dots on standby screen
     function animateDots() {
@@ -1488,6 +1490,16 @@
           firewallSection.classList.add('hidden');
           coreSection.classList.add('hidden');
           victorySection.classList.remove('hidden');
+        } else if (data.aiDying) {
+          // AI is dying - show farewell message, keep core section visible
+          hideAllIntroScreens();
+          bossScreen.classList.remove('hidden');
+          victorySection.classList.add('hidden');
+          firewallSection.classList.add('hidden');
+          bossTerminal.classList.add('hidden');
+          coreSection.classList.remove('hidden');
+          farewellInProgress = true;
+          updateCoreScreen(data);
         } else if (corePhase) {
           // Show core phase screen (chat + password) - hide boss terminal
           hideAllIntroScreens();
@@ -2239,12 +2251,18 @@
       coreChatHistory = [...serverChat];
       coreWaitingForAI = data.coreAiProcessing || false;
 
-      // On first load, skip animations
+      // On first load, skip animations (except for farewell - always animate that)
       if (coreIsFirstLoad) {
         coreIsFirstLoad = false;
-        coreAnimatedMessageCount = coreChatHistory.length;
-        renderCoreChat();
-        return;
+        // Check if there's a farewell message - if so, animate from before it
+        const farewellIndex = coreChatHistory.findIndex(m => m.isFarewell);
+        if (farewellIndex >= 0 && farewellInProgress) {
+          coreAnimatedMessageCount = farewellIndex;
+        } else {
+          coreAnimatedMessageCount = coreChatHistory.length;
+          renderCoreChat();
+          return;
+        }
       }
 
       // Check if we need to animate a new message
@@ -2278,14 +2296,45 @@
         if (coreTypewriterDisplayedText.length < coreTypewriterTargetText.length) {
           coreTypewriterDisplayedText = coreTypewriterTargetText.slice(0, coreTypewriterDisplayedText.length + 1);
           updateCoreStreamingDisplay();
-          coreTypewriterAnimationId = setTimeout(tick, CORE_TYPEWRITER_DELAY);
+          // Slower typewriter for farewell message (more dramatic)
+          const delay = farewellInProgress ? 40 : CORE_TYPEWRITER_DELAY;
+          coreTypewriterAnimationId = setTimeout(tick, delay);
         } else {
           coreTypewriterAnimationId = null;
 
           if (coreCurrentlyAnimatingIndex >= 0) {
+            const justFinishedMessage = coreChatHistory[coreCurrentlyAnimatingIndex];
             coreAnimatedMessageCount = coreCurrentlyAnimatingIndex + 1;
             coreCurrentlyAnimatingIndex = -1;
             resetCoreTypewriter();
+
+            // Check if this was the farewell message
+            if (farewellInProgress && justFinishedMessage && justFinishedMessage.isFarewell) {
+              farewellCompleted = true;
+              console.log('Farewell message complete. Showing disconnect message...');
+
+              // Include the disconnect message (and any other system messages)
+              while (coreAnimatedMessageCount < coreChatHistory.length &&
+                     coreChatHistory[coreAnimatedMessageCount].role !== 'ai') {
+                coreAnimatedMessageCount++;
+              }
+
+              // Show the disconnect message
+              renderCoreChat();
+
+              // Wait a moment for disconnect to render, then trigger victory after 5 seconds
+              setTimeout(async () => {
+                console.log('Triggering victory in 5 seconds...');
+                setTimeout(async () => {
+                  try {
+                    await fetch('/api/core/victory', { method: 'POST' });
+                  } catch (err) {
+                    console.error('Failed to trigger victory:', err);
+                  }
+                }, 5000);
+              }, 500);
+              return;
+            }
 
             // Include following non-AI messages
             while (coreAnimatedMessageCount < coreChatHistory.length &&
@@ -2488,6 +2537,8 @@
       const passwordInput = document.getElementById('core-password');
       const messageEl = document.getElementById('core-password-message');
       const submitBtn = document.getElementById('core-submit-btn');
+      const coreInput = document.getElementById('core-chat-input');
+      const coreSendBtn = document.getElementById('core-chat-send');
       const password = passwordInput.value.trim();
 
       if (!password) {
@@ -2509,13 +2560,21 @@
         const data = await response.json();
 
         if (data.success) {
-          messageEl.textContent = 'Q.W.E.E.N. DESTROYED! You win!';
-          messageEl.classList.remove('hidden', 'error');
-          messageEl.classList.add('success');
+          // Disable all inputs immediately
           passwordInput.disabled = true;
           submitBtn.disabled = true;
-          submitBtn.textContent = 'DESTROYED';
-          // Show victory screen (handled by game state change)
+          submitBtn.textContent = 'ACCEPTED';
+          if (coreInput) coreInput.disabled = true;
+          if (coreSendBtn) coreSendBtn.disabled = true;
+
+          // Show password accepted message
+          messageEl.textContent = 'PASSWORD ACCEPTED';
+          messageEl.classList.remove('hidden', 'error');
+          messageEl.classList.add('success');
+
+          // The farewell message will be shown via the game state polling
+          // which will detect aiDying and show the message with typewriter
+          // After farewell completes, we trigger victory
         } else {
           messageEl.textContent = data.error || 'Wrong password!';
           messageEl.classList.remove('hidden', 'success');
