@@ -525,6 +525,119 @@
       50% { opacity: 0.5; }
     }
 
+    /* Core Phase Password Section */
+    .core-section {
+      width: 100%;
+      max-width: 900px;
+      margin-top: 1rem;
+    }
+
+    .core-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      background: rgba(255, 0, 255, 0.1);
+      border: 2px solid #ff00ff;
+      border-radius: 10px;
+      padding: 1.5rem 2rem;
+      animation: corePulse 2s ease-in-out infinite;
+    }
+
+    @keyframes corePulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.3); }
+      50% { box-shadow: 0 0 40px rgba(255, 0, 255, 0.6); }
+    }
+
+    .core-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #ff00ff;
+      text-transform: uppercase;
+      letter-spacing: 0.2rem;
+      text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+    }
+
+    .core-subtitle {
+      font-size: 1rem;
+      color: #ccc;
+      margin-bottom: 0.5rem;
+    }
+
+    .core-input-row {
+      display: flex;
+      gap: 1rem;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .core-input {
+      flex: 1;
+      padding: 1rem;
+      font-size: 1.2rem;
+      font-family: inherit;
+      background: #0d0d0d;
+      border: 2px solid #ff00ff;
+      border-radius: 5px;
+      color: #ff00ff;
+      text-transform: uppercase;
+      letter-spacing: 0.2rem;
+      text-align: center;
+    }
+
+    .core-input:focus {
+      outline: none;
+      box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+    }
+
+    .core-input::placeholder {
+      color: #666;
+      text-transform: uppercase;
+    }
+
+    .core-submit {
+      padding: 1rem 2rem;
+      font-size: 1.2rem;
+      font-family: inherit;
+      font-weight: bold;
+      background: #ff00ff;
+      border: none;
+      border-radius: 5px;
+      color: #000;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.1rem;
+      transition: all 0.3s ease;
+    }
+
+    .core-submit:hover {
+      box-shadow: 0 0 30px rgba(255, 0, 255, 0.8);
+      transform: scale(1.05);
+    }
+
+    .core-message {
+      font-size: 1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 5px;
+      text-align: center;
+    }
+
+    .core-message.error {
+      color: #ff4444;
+      background: rgba(255, 68, 68, 0.1);
+    }
+
+    .core-message.success {
+      color: #00ff00;
+      background: rgba(0, 255, 0, 0.1);
+    }
+
+    .core-hint {
+      font-size: 0.9rem;
+      color: #888;
+      font-style: italic;
+    }
+
     /* ========== GLITCH EFFECTS ========== */
     .flash-overlay {
       position: absolute;
@@ -827,14 +940,27 @@
         <!-- Chat messages will be rendered here -->
       </div>
     </div>
-    <!-- Firewall Health Bar -->
-    <div class="firewall-section">
+    <!-- Firewall Health Bar (shown during boss phase) -->
+    <div class="firewall-section" id="firewall-section">
       <div class="firewall-container">
         <span class="firewall-label">FIREWALL</span>
         <div class="firewall-bar">
           <div class="firewall-fill" id="firewall-fill"></div>
         </div>
         <span class="firewall-hp" id="firewall-hp">5/5</span>
+      </div>
+    </div>
+    <!-- Core Phase Password Input (shown during core phase) -->
+    <div class="core-section hidden" id="core-section">
+      <div class="core-container">
+        <div class="core-title">ENTER THE CORE</div>
+        <div class="core-subtitle">Q.W.E.E.N. has retreated. Enter the destruction password to finish her!</div>
+        <div class="core-input-row">
+          <input type="text" id="core-password" class="core-input" placeholder="PASSWORD" autocomplete="off">
+          <button type="button" id="core-submit-btn" class="core-submit" onclick="submitCorePassword()">DESTROY</button>
+        </div>
+        <p id="core-message" class="core-message hidden"></p>
+        <p class="core-hint">Hint: Ask the birthday boy!</p>
       </div>
     </div>
   </div>
@@ -873,6 +999,7 @@
     let lastScores = { red: 0, blue: 0 };
     let gameStarted = false;
     let bossPhase = false;
+    let corePhase = false;
     let bossPlayer = null;
     let localChatHistory = []; // Local chat for instant display
     let waitingForAI = false;
@@ -905,6 +1032,7 @@
         const data = await response.json();
         gameStarted = data.started;
         bossPhase = data.bossPhase;
+        corePhase = data.corePhase || false;
         bossPlayer = data.bossPlayer;
 
         // Store player info and access codes for chat highlighting
@@ -913,11 +1041,22 @@
 
         const standbyScreen = document.getElementById('standby-screen');
         const bossScreen = document.getElementById('boss-screen');
+        const firewallSection = document.getElementById('firewall-section');
+        const coreSection = document.getElementById('core-section');
 
-        if (bossPhase) {
+        if (corePhase) {
+          // Show core phase screen (password input)
+          standbyScreen.classList.add('hidden');
+          bossScreen.classList.remove('hidden');
+          firewallSection.classList.add('hidden');
+          coreSection.classList.remove('hidden');
+          updateBossScreen(data);
+        } else if (bossPhase) {
           // Show boss phase screen
           standbyScreen.classList.add('hidden');
           bossScreen.classList.remove('hidden');
+          firewallSection.classList.remove('hidden');
+          coreSection.classList.add('hidden');
           updateBossScreen(data);
         } else if (gameStarted) {
           // Show scoreboard
@@ -950,7 +1089,14 @@
     function updateBossScreen(data) {
       // Always sync from server - it's the source of truth
       const serverChat = data.bossChatHistory || [];
-      localChatHistory = [...serverChat];
+      // Filter out system messages with future timestamps (for staggered display)
+      const now = Date.now();
+      localChatHistory = serverChat.filter(msg => {
+        // If message has no timestamp or is not a system message, show it immediately
+        if (!msg.timestamp || msg.role !== 'system') return true;
+        // Only show system messages whose timestamp has passed
+        return msg.timestamp <= now;
+      });
       // Use server's aiProcessing flag
       waitingForAI = data.aiProcessing || false;
       // Store streaming text and update typewriter
@@ -1647,6 +1793,52 @@
       schedulePoll(delay);
     }
     poll();
+
+    // Submit core password
+    async function submitCorePassword() {
+      const passwordInput = document.getElementById('core-password');
+      const messageEl = document.getElementById('core-message');
+      const password = passwordInput.value.trim();
+
+      if (!password) {
+        messageEl.textContent = 'Enter a password!';
+        messageEl.classList.remove('hidden', 'success');
+        messageEl.classList.add('error');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/boss/destroy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          messageEl.textContent = 'Q.W.E.E.N. DESTROYED! You win!';
+          messageEl.classList.remove('hidden', 'error');
+          messageEl.classList.add('success');
+          passwordInput.disabled = true;
+          document.getElementById('core-submit-btn').disabled = true;
+        } else {
+          messageEl.textContent = data.error || 'Wrong password!';
+          messageEl.classList.remove('hidden', 'success');
+          messageEl.classList.add('error');
+        }
+      } catch (err) {
+        messageEl.textContent = 'Connection error!';
+        messageEl.classList.remove('hidden', 'success');
+        messageEl.classList.add('error');
+      }
+    }
+
+    // Allow Enter key to submit password
+    document.getElementById('core-password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitCorePassword();
+      }
+    });
 
   </script>
 </body>

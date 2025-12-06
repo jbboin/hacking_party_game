@@ -1327,6 +1327,22 @@ input[type="text"]::placeholder {
   box-shadow: 0 0 20px rgba(255, 153, 0, 0.5);
 }
 
+.btn-core {
+  background: transparent;
+  border: 2px solid #ff00ff;
+  color: #ff00ff;
+}
+
+.btn-core:hover {
+  background: #ff00ff;
+  color: var(--bg-dark);
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+}
+
+.game-status.core {
+  color: #ff00ff;
+}
+
 /* Photo Upload Section */
 .photo-upload-section {
   margin-top: 1rem;

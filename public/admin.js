@@ -1,5 +1,6 @@
-// Track boss mode state globally
+// Track boss mode and core phase state globally
 let isBossMode = false;
+let isCorePhase = false;
 
 // Load game state
 async function loadGameState() {
@@ -8,7 +9,8 @@ async function loadGameState() {
     const data = await response.json();
     const wasBossMode = isBossMode;
     isBossMode = data.bossPhase || false;
-    updateGameUI(data.started, data.bossPhase, data.firewallHP);
+    isCorePhase = data.corePhase || false;
+    updateGameUI(data.started, data.bossPhase, data.firewallHP, data.corePhase);
     // Reload guests if boss mode changed (to update buttons)
     if (wasBossMode !== isBossMode) {
       loadGuests();
@@ -19,20 +21,38 @@ async function loadGameState() {
 }
 
 // Update game UI based on state
-function updateGameUI(isRunning, bossPhase = false, firewallHP = 5) {
+function updateGameUI(isRunning, bossPhase = false, firewallHP = 5, corePhase = false) {
   const statusEl = document.getElementById('game-status');
   const startBtn = document.getElementById('start-game-btn');
   const stopBtn = document.getElementById('stop-game-btn');
   const bossBtn = document.getElementById('boss-phase-btn');
+  const coreBtn = document.getElementById('core-phase-btn');
   const bossControlsBox = document.getElementById('boss-controls-box');
   const scoresSection = document.getElementById('scores-section');
 
-  if (bossPhase) {
+  if (corePhase) {
+    statusEl.textContent = 'GAME: CORE PHASE';
+    statusEl.className = 'game-status core';
+    startBtn.classList.add('hidden');
+    stopBtn.classList.remove('hidden');
+    bossBtn.classList.add('hidden');
+    if (coreBtn) coreBtn.classList.add('hidden');
+    bossControlsBox.classList.add('hidden');
+    if (scoresSection) scoresSection.classList.add('hidden');
+  } else if (bossPhase) {
     statusEl.textContent = 'GAME: BOSS PHASE';
     statusEl.className = 'game-status boss';
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     bossBtn.classList.add('hidden');
+    // Show core phase button when firewall is down
+    if (coreBtn) {
+      if (firewallHP === 0) {
+        coreBtn.classList.remove('hidden');
+      } else {
+        coreBtn.classList.add('hidden');
+      }
+    }
     bossControlsBox.classList.remove('hidden');
     if (scoresSection) scoresSection.classList.add('hidden');
     updateFirewallHPDisplay(firewallHP);
@@ -42,6 +62,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5) {
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     bossBtn.classList.remove('hidden');
+    if (coreBtn) coreBtn.classList.add('hidden');
     bossControlsBox.classList.add('hidden');
     if (scoresSection) scoresSection.classList.remove('hidden');
   } else {
@@ -50,6 +71,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5) {
     startBtn.classList.remove('hidden');
     stopBtn.classList.add('hidden');
     bossBtn.classList.add('hidden');
+    if (coreBtn) coreBtn.classList.add('hidden');
     bossControlsBox.classList.add('hidden');
     if (scoresSection) scoresSection.classList.remove('hidden');
   }
@@ -149,6 +171,19 @@ async function startBossPhase() {
     console.log('Boss phase started!');
   } catch (error) {
     console.error('Failed to start boss phase:', error);
+  }
+}
+
+// Start core phase (final phase after firewall is down)
+async function startCorePhase() {
+  if (!confirm('Start the CORE PHASE? Q.W.E.E.N. has retreated - time for the final showdown!')) return;
+  try {
+    const response = await fetch('/api/game/core', { method: 'POST' });
+    const data = await response.json();
+    updateGameUI(data.started, data.bossPhase, 0, data.corePhase);
+    console.log('Core phase started!');
+  } catch (error) {
+    console.error('Failed to start core phase:', error);
   }
 }
 

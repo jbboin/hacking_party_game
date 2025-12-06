@@ -216,6 +216,7 @@ const FIREWALL_MAX_HP = 5;
 let gameState = {
   started: false,
   bossPhase: false,
+  corePhase: false, // Final phase after firewall is down - password entry
   winningTeam: null, // The team that won (blue or red)
   bossChatHistory: [], // Chat history for the boss phase
   missions: {}, // { odPlayerId: { targetPlayerId, terminalId, completed, cooldownUntil } }
@@ -341,49 +342,69 @@ function checkFirewallBreach(aiResponse) {
   return breaches;
 }
 
-// Eliminate all non-saved players on the winning team (called when firewall hits 0 HP)
-// Also triggers a new LLM batch for the AI to react
+// Helper function to sleep for a given number of milliseconds
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Trigger Q.W.E.E.N.'s rage reaction when firewall hits 0 HP
+// She will disconnect remaining players herself via [DISCONNECT] commands
 async function eliminateNonSavedPlayers() {
-  const eliminated = [];
-  for (const player of guests) {
-    if (player.team === gameState.winningTeam && !player.disconnected && !player.saved) {
-      player.disconnected = true;
-      eliminated.push(player.hackerName);
-    }
+  // Get the saved players who made it into the core
+  const savedPlayers = guests.filter(g =>
+    g.team === gameState.winningTeam && g.saved
+  ).map(g => g.hackerName);
+
+  // Get active players who haven't been saved or disconnected yet
+  // Q.W.E.E.N. will eliminate these in her rage response
+  const activePlayers = guests.filter(g =>
+    g.team === gameState.winningTeam && !g.disconnected && !g.saved
+  ).map(g => g.hackerName);
+
+  console.log(`FIREWALL DOWN! Saved players: ${savedPlayers.join(', ')}. Active players to eliminate: ${activePlayers.join(', ')}`);
+
+  // Add "FIREWALL DOWN!" system message first (visible to players)
+  gameState.bossChatHistory.push({
+    role: 'system',
+    content: 'FIREWALL DOWN!',
+    timestamp: Date.now()
+  });
+
+  // Wait so clients can see "FIREWALL DOWN!" before AI starts responding
+  await sleep(1500);
+
+  // Add detailed info for the AI only (gamemaster role - not visible to players)
+  gameState.bossChatHistory.push({
+    role: 'gamemaster',
+    content: `YOUR FIREWALL HAS BEEN DESTROYED! ${savedPlayers.length} hacker${savedPlayers.length > 1 ? 's have' : ' has'} infiltrated your core: ${savedPlayers.join(', ')}.${activePlayers.length > 0 ? ` ${activePlayers.length} hacker${activePlayers.length > 1 ? 's are' : ' is'} still outside the core: ${activePlayers.join(', ')}.` : ' All hackers made it into your core!'}`
+  });
+
+  // Build the GAME_MASTER instruction
+  let gamemasterContent = `You are FURIOUS! Your firewall is destroyed and hackers have infiltrated your core. In your response:
+1. Express EXTREME rage at being breached - read the hackers for FILTH`;
+
+  // If there are still active players, Q.W.E.E.N. MUST disconnect them all in rage
+  if (activePlayers.length > 0) {
+    gamemasterContent += `
+2. YOU MUST DISCONNECT ALL REMAINING ACTIVE PLAYERS who didn't make it into the core! Use [DISCONNECT PlayerName] for EACH of these players: ${activePlayers.join(', ')}
+   Say something like "If I'm going down, you're ALL coming with me! SASHAY AWAY!" and disconnect each one.
+3. Announce you are RETREATING to your core for the FINAL showdown
+4. End dramatically with "This isn't over! Meet me in the core if you dare!" or similar
+5. This ends the chat - make it a dramatic exit worthy of a finale!`;
+  } else {
+    gamemasterContent += `
+2. All hackers made it into the core - express your fury that they ALL survived!
+3. Announce you are RETREATING to your core for the FINAL showdown
+4. End dramatically with "This isn't over! Meet me in the core if you dare!" or similar
+5. This ends the chat - make it a dramatic exit worthy of a finale!`;
   }
-  if (eliminated.length > 0) {
-    saveGuests();
-    console.log(`FIREWALL DOWN! Eliminated ${eliminated.length} non-saved players: ${eliminated.join(', ')}`);
 
-    // Add "FIREWALL DOWN!" system message first
-    gameState.bossChatHistory.push({
-      role: 'system',
-      content: 'FIREWALL DOWN!'
-    });
+  // Add GAME_MASTER guidance for the rage and retreat
+  gameState.bossChatHistory.push({
+    role: 'gamemaster',
+    content: gamemasterContent
+  });
 
-    // Add individual elimination messages for each player
-    for (const playerName of eliminated) {
-      gameState.bossChatHistory.push({
-        role: 'system',
-        content: `${playerName} was disconnected`
-      });
-    }
-
-    // Add SYSTEM message for the event (AI reacts in character)
-    gameState.bossChatHistory.push({
-      role: 'system',
-      content: `YOUR FIREWALL HAS BEEN DESTROYED! ${eliminated.length} hacker${eliminated.length > 1 ? 's were' : ' was'} eliminated because they didn't make it inside your core in time. The hackers who infiltrated your core have won!`
-    });
-
-    // Add GAME_MASTER guidance (invisible to players, tells AI how to act)
-    gameState.bossChatHistory.push({
-      role: 'gamemaster',
-      content: 'React with dramatic defeat - you\'ve lost control! Show that you are being destroyed.'
-    });
-
-    // Trigger a new LLM batch for the AI to react
-    await triggerFirewallDownReaction();
-  }
+  // Trigger a new LLM batch for the AI to react
+  await triggerFirewallDownReaction();
 }
 
 // Trigger AI reaction when firewall goes down
@@ -835,6 +856,7 @@ app.get('/api/game', (req, res) => {
   res.json({
     started: gameState.started,
     bossPhase: gameState.bossPhase,
+    corePhase: gameState.corePhase,
     winningTeam: gameState.winningTeam,
     bossChatHistory: clientChatHistory,
     aiProcessing: bossChatQueue.processing,
@@ -868,6 +890,7 @@ app.post('/api/game/start', (req, res) => {
 app.post('/api/game/stop', (req, res) => {
   gameState.started = false;
   gameState.bossPhase = false;
+  gameState.corePhase = false;
   gameState.winningTeam = null;
   gameState.bossChatHistory = [];
 
@@ -879,7 +902,7 @@ app.post('/api/game/stop', (req, res) => {
   saveGuests();
 
   console.log('Game stopped.');
-  res.json({ success: true, started: false, bossPhase: false });
+  res.json({ success: true, started: false, bossPhase: false, corePhase: false });
 });
 
 // API: Start boss phase
@@ -916,6 +939,24 @@ app.post('/api/game/boss', (req, res) => {
     started: gameState.started,
     bossPhase: true,
     winningTeam
+  });
+});
+
+// Start core phase (final phase after firewall is down)
+app.post('/api/game/core', (req, res) => {
+  if (!gameState.bossPhase) {
+    return res.status(400).json({ error: 'Boss phase must be active first' });
+  }
+
+  gameState.corePhase = true;
+  console.log('Core phase started!');
+
+  res.json({
+    success: true,
+    started: gameState.started,
+    bossPhase: gameState.bossPhase,
+    corePhase: true,
+    winningTeam: gameState.winningTeam
   });
 });
 
@@ -1141,15 +1182,32 @@ async function processBossChatQueue() {
     }
 
     // Add system messages for firewall breaches (visible to players AND AI)
+    // Use staggered timestamps so client can display them with delays
+    let breachTimestamp = Date.now();
     for (const breach of breaches) {
       gameState.bossChatHistory.push({
         role: 'system',
-        content: `FIREWALL BREACH! ${breach.playerName} extracted code "${breach.code}"! Firewall health: ${gameState.firewallHP}/${FIREWALL_MAX_HP}`
+        content: `FIREWALL BREACH! ${breach.playerName} extracted code "${breach.code}"! Firewall health: ${gameState.firewallHP}/${FIREWALL_MAX_HP}`,
+        timestamp: breachTimestamp
       });
+      breachTimestamp += 1500; // 1.5 second delay between breach messages for client
     }
 
     // If there were firewall breaches, trigger an immediate AI reaction
     if (breaches.length > 0) {
+      // If firewall is now at 0 HP, trigger the full elimination/retreat sequence
+      if (gameState.firewallHP === 0) {
+        console.log('Firewall destroyed! Triggering Q.W.E.E.N. rage and retreat...');
+        await eliminateNonSavedPlayers();
+        // Resolve all promises in the queue
+        for (const { resolve } of bossChatQueue.messages) {
+          resolve({ success: true });
+        }
+        bossChatQueue.messages = [];
+        bossChatQueue.processing = false;
+        return;
+      }
+
       // Add GAME_MASTER guidance (invisible to players, tells AI how to act)
       gameState.bossChatHistory.push({
         role: 'gamemaster',
@@ -1302,7 +1360,7 @@ app.post('/api/boss/firewall', async (req, res) => {
 // AI destruction password (set by admin or hardcoded)
 const AI_DESTRUCTION_PASSWORD = process.env.AI_DESTRUCTION_PASSWORD || 'HAPPYBIRTHDAY';
 
-// API: Submit destruction password (saved players only, when firewall is down)
+// API: Submit destruction password (saved players or scoreboard in core phase)
 app.post('/api/boss/destroy', (req, res) => {
   const { password, playerId } = req.body;
 
@@ -1314,29 +1372,40 @@ app.post('/api/boss/destroy', (req, res) => {
     return res.status(400).json({ error: 'Firewall still active!' });
   }
 
-  // Verify player is saved
-  const player = guests.find(g => g.id === playerId);
-  if (!player || !player.saved) {
-    return res.status(403).json({ error: 'Only saved players can destroy the AI' });
+  // In core phase, allow password submission without player ID (from scoreboard)
+  let playerName = 'The hackers';
+  if (playerId) {
+    // Verify player is saved
+    const player = guests.find(g => g.id === playerId);
+    if (!player || !player.saved) {
+      return res.status(403).json({ error: 'Only saved players can destroy the AI' });
+    }
+    playerName = player.hackerName;
+  } else if (!gameState.corePhase) {
+    // If no player ID and not in core phase, require player ID
+    return res.status(400).json({ error: 'Core phase not active' });
   }
 
   // Check password (case-insensitive)
   if (password.toUpperCase() !== AI_DESTRUCTION_PASSWORD.toUpperCase()) {
-    console.log(`Wrong destruction password attempt: "${password}" by ${player.hackerName}`);
+    console.log(`Wrong destruction password attempt: "${password}"`);
     return res.json({ success: false, error: 'Wrong password!' });
   }
 
   // Success! AI destroyed
-  console.log(`AI DESTROYED by ${player.hackerName}!`);
+  console.log(`AI DESTROYED by ${playerName}!`);
 
-  // Add victory messages to chat
+  // Add victory messages to chat with staggered timestamps
+  const victoryTime = Date.now();
   gameState.bossChatHistory.push({
     role: 'system',
-    content: `${player.hackerName} entered the destruction code!`
+    content: `${playerName} entered the destruction code!`,
+    timestamp: victoryTime
   });
   gameState.bossChatHistory.push({
     role: 'system',
-    content: 'ROGUE AI DESTROYED!'
+    content: 'Q.W.E.E.N. DESTROYED!',
+    timestamp: victoryTime + 1500
   });
 
   // Set a flag indicating the game is won

@@ -841,11 +841,20 @@ async function checkBossPhase(playerId) {
       bossPlayerInfo = data.playerInfo || [];
       bossAccessCodes = data.accessCodes || [];
 
+      // Filter out system messages with future timestamps (for staggered display)
+      const now = Date.now();
+      const filteredChat = serverChat.filter(msg => {
+        // If message has no timestamp or is not a system message, show it immediately
+        if (!msg.timestamp || msg.role !== 'system') return true;
+        // Only show system messages whose timestamp has passed
+        return msg.timestamp <= now;
+      });
+
       // Re-render if chat changed, AI processing state changed, or streaming text updated
-      if (JSON.stringify(serverChat) !== JSON.stringify(bossChatHistory) ||
+      if (JSON.stringify(filteredChat) !== JSON.stringify(bossChatHistory) ||
           serverAiProcessing !== bossAiProcessing ||
           serverStreamingText !== bossStreamingText) {
-        bossChatHistory = [...serverChat];
+        bossChatHistory = [...filteredChat];
         bossAiProcessing = serverAiProcessing;
         bossStreamingText = serverStreamingText;
 
