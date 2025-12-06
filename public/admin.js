@@ -141,7 +141,7 @@ async function stopGame() {
 
 // Start boss phase
 async function startBossPhase() {
-  if (!confirm('Start the BOSS PHASE? The scoreboard will show the Rogue AI terminal.')) return;
+  if (!confirm('Start the BOSS PHASE? The scoreboard will show Q.W.E.E.N. terminal.')) return;
   try {
     const response = await fetch('/api/game/boss', { method: 'POST' });
     const data = await response.json();

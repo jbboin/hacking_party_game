@@ -821,7 +821,7 @@
         <span class="dot red"></span>
         <span class="dot yellow"></span>
         <span class="dot green"></span>
-        <span class="boss-terminal-title">ROGUE AI TERMINAL v6.6.6</span>
+        <span class="boss-terminal-title">Q.W.E.E.N. TERMINAL v6.6.6</span>
       </div>
       <div class="boss-chat-container" id="boss-chat">
         <!-- Chat messages will be rendered here -->
@@ -1270,13 +1270,25 @@
       tick();
     }
 
+    // Check if user is scrolled near the bottom (within 100px)
+    function isNearBottom(container) {
+      const threshold = 100;
+      return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+    }
+
     // Update just the streaming text display (fast path)
     function updateStreamingDisplay() {
       const chatContainer = document.getElementById('boss-chat');
       const streamingDiv = chatContainer.querySelector('.chat-message.ai.streaming .content');
       if (streamingDiv) {
+        const scrollPos = chatContainer.scrollTop;
+        const wasNearBottom = isNearBottom(chatContainer);
         streamingDiv.innerHTML = formatWithNewlines(typewriterDisplayedText, true) + '<span class="streaming-cursor">_</span>';
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        if (wasNearBottom) {
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+        } else {
+          chatContainer.scrollTop = scrollPos;
+        }
       }
     }
 
@@ -1357,7 +1369,7 @@
         // AI messages
         return `
         <div class="chat-message ai">
-          <div class="sender">ROGUE AI</div>
+          <div class="sender">Q.W.E.E.N.</div>
           <div class="content">${formatWithNewlines(msg.content, true)}</div>
         </div>
       `;
@@ -1369,13 +1381,13 @@
           // Show the partial AI response with typewriter animation
           html += `
           <div class="chat-message ai streaming">
-            <div class="sender">ROGUE AI</div>
+            <div class="sender">Q.W.E.E.N.</div>
             <div class="content">${formatWithNewlines(typewriterDisplayedText, true)}<span class="streaming-cursor">_</span></div>
           </div>
           `;
         } else if (waitingForAI) {
           // Show typing indicator while waiting for first token
-          html += `<div class="typing-indicator">ROGUE AI is processing<span>...</span></div>`;
+          html += `<div class="typing-indicator">Q.W.E.E.N. is processing<span>...</span></div>`;
         }
       } else {
         // Typewriter finished - reset for next time
@@ -1384,11 +1396,20 @@
 
       // Only update DOM if content changed
       if (html !== lastChatHtml) {
+        // Save scroll position before modifying DOM
+        const scrollPos = chatContainer.scrollTop;
+        const wasNearBottom = isNearBottom(chatContainer);
+
         chatContainer.innerHTML = html;
         lastChatHtml = html;
         lastRenderedMessageCount = localChatHistory.length;
-        // Auto-scroll to bottom only when content changes
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        // Restore scroll position, or scroll to bottom if user was already there
+        if (wasNearBottom) {
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+        } else {
+          chatContainer.scrollTop = scrollPos;
+        }
       }
     }
 

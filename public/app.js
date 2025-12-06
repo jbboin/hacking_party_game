@@ -903,13 +903,26 @@ function animateTypewriter() {
   tick();
 }
 
+// Check if user is scrolled near the bottom (within 100px)
+function isNearBottom(container) {
+  const threshold = 100;
+  return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+}
+
 // Update just the streaming text display (fast path)
 function updateStreamingDisplay() {
   const container = document.getElementById('boss-chat-container');
   const streamingDiv = container.querySelector('.boss-chat-message.streaming .content');
   if (streamingDiv) {
+    const scrollPos = container.scrollTop;
+    const wasNearBottom = isNearBottom(container);
     streamingDiv.innerHTML = formatWithNewlines(typewriterDisplayedText, true) + '<span class="streaming-cursor">_</span>';
-    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    // Only auto-scroll if user was already at the bottom
+    if (wasNearBottom) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    } else {
+      container.scrollTop = scrollPos;
+    }
   }
 }
 
@@ -997,7 +1010,7 @@ function renderBossChat() {
     // AI messages
     return `
     <div class="boss-chat-message ai${isNew ? ' new-message' : ''}">
-      <div class="sender">ROGUE AI</div>
+      <div class="sender">Q.W.E.E.N.</div>
       <div class="content">${formatWithNewlines(msg.content, true)}</div>
     </div>
   `;
@@ -1010,24 +1023,32 @@ function renderBossChat() {
       const displayText = typewriterDisplayedText || '';
       html += `
       <div class="boss-chat-message ai streaming new-message">
-        <div class="sender">ROGUE AI</div>
+        <div class="sender">Q.W.E.E.N.</div>
         <div class="content">${formatWithNewlines(displayText, true)}<span class="streaming-cursor">_</span></div>
       </div>
       `;
       lastRenderedStreamingText = bossStreamingText;
     } else if (bossAiProcessing) {
       // Show typing indicator while waiting for first token
-      html += `<div class="boss-typing-indicator new-message">ROGUE AI is processing<span>...</span></div>`;
+      html += `<div class="boss-typing-indicator new-message">Q.W.E.E.N. is processing<span>...</span></div>`;
     }
   } else {
     // Typewriter finished - reset for next time
     resetTypewriter();
   }
 
+  // Save scroll position before modifying DOM
+  const scrollPos = container.scrollTop;
+  const wasNearBottom = isNearBottom(container);
+
   container.innerHTML = html;
 
-  // Scroll to bottom (instant on full render, then smooth updates)
-  container.scrollTop = container.scrollHeight;
+  // Restore scroll position, or scroll to bottom if user was already there
+  if (wasNearBottom) {
+    container.scrollTop = container.scrollHeight;
+  } else {
+    container.scrollTop = scrollPos;
+  }
 }
 
 // Track if currently sending a message
