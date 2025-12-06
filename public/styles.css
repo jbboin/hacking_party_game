@@ -560,6 +560,82 @@ input[type="text"]::placeholder {
   border-color: var(--red);
 }
 
+/* Destruction Password Box (Admin) */
+.destruction-password-box {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 0, 0, 0.1);
+  border: 2px solid var(--red);
+  border-radius: 8px;
+  animation: pulse-red 2s ease-in-out infinite;
+}
+
+.destruction-password-box label {
+  display: block;
+  color: var(--red);
+  font-weight: bold;
+  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+  text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+}
+
+.destruction-password-box .destruction-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.destruction-password-box .destruction-input-row input {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.destruction-password-box .destruction-input-row input:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+}
+
+.destruction-password-box .destruction-input-row button {
+  background: var(--red);
+  color: #000;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 1rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.destruction-password-box .destruction-input-row button:hover {
+  background: #ff6666;
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+}
+
+.destruction-password-box .destruction-message {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.destruction-password-box .destruction-message.error {
+  color: var(--yellow);
+}
+
+.destruction-password-box .destruction-message.success {
+  color: var(--green);
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 5px rgba(255, 0, 0, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(255, 0, 0, 0.6); }
+}
+
 .ai-guidance-input-row button {
   background: var(--red);
   color: #000;
@@ -782,6 +858,60 @@ input[type="text"]::placeholder {
 }
 
 .btn-reset-small:hover {
+  background: rgba(255, 51, 51, 0.1);
+}
+
+/* Boss Mode Admin Buttons */
+.btn-save {
+  background: transparent;
+  border: 1px solid var(--green);
+  color: var(--green);
+  padding: 0.3rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+  border-radius: 3px;
+  margin-right: 0.3rem;
+}
+
+.btn-save:hover {
+  background: rgba(0, 255, 65, 0.2);
+  box-shadow: 0 0 8px var(--green-glow);
+}
+
+.btn-disconnect {
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 0.3rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.btn-disconnect:hover {
+  background: rgba(255, 51, 51, 0.2);
+  box-shadow: 0 0 8px rgba(255, 51, 51, 0.5);
+}
+
+.player-status {
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  margin-right: 0.5rem;
+}
+
+.status-saved {
+  color: var(--green);
+  border: 1px solid var(--green);
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.status-disconnected {
+  color: var(--red);
+  border: 1px solid var(--red);
   background: rgba(255, 51, 51, 0.1);
 }
 
@@ -1859,6 +1989,156 @@ input[type="text"]::placeholder {
   }
 }
 
+/* ================== SAVED BOX (CORE INFILTRATED - inside terminal) ================== */
+
+.saved-box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 20, 0, 0.95);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+}
+
+.saved-box.hidden {
+  display: none;
+}
+
+/* Matrix-style falling code effect */
+.saved-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 255, 0, 0.03) 2px,
+      rgba(0, 255, 0, 0.03) 4px
+    );
+  animation: matrixScroll 0.5s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes matrixScroll {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 4px; }
+}
+
+/* Grid pattern overlay */
+.saved-box::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(90deg, transparent 95%, rgba(0, 255, 0, 0.1) 95%),
+    linear-gradient(0deg, transparent 95%, rgba(0, 255, 0, 0.1) 95%);
+  background-size: 20px 20px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.saved-content {
+  text-align: center;
+  z-index: 1;
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(0, 255, 0, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 30px rgba(0, 255, 0, 0.8));
+  }
+}
+
+.saved-text {
+  font-family: 'Courier New', monospace;
+  font-size: 3rem;
+  font-weight: bold;
+  color: #00ff00;
+  text-shadow:
+    0 0 10px rgba(0, 255, 0, 0.8),
+    0 0 20px rgba(0, 255, 0, 0.6),
+    0 0 40px rgba(0, 255, 0, 0.4);
+  letter-spacing: 0.3rem;
+  animation: savedPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes savedPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+}
+
+.saved-subtext {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  color: #00cc00;
+  margin-top: 1.5rem;
+  letter-spacing: 0.15rem;
+  animation: subtextBlink 2s ease-in-out infinite;
+}
+
+@keyframes subtextBlink {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+/* Core icon animation */
+.saved-content::before {
+  content: '◆';
+  display: block;
+  font-size: 4rem;
+  color: #00ff00;
+  margin-bottom: 1rem;
+  animation: coreRotate 4s linear infinite;
+  text-shadow:
+    0 0 20px rgba(0, 255, 0, 0.8),
+    0 0 40px rgba(0, 255, 0, 0.5);
+}
+
+@keyframes coreRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Mobile responsive for saved box */
+@media (max-width: 600px) {
+  .saved-text {
+    font-size: 2rem;
+    letter-spacing: 0.2rem;
+  }
+
+  .saved-subtext {
+    font-size: 0.85rem;
+    padding: 0 1rem;
+  }
+
+  .saved-content::before {
+    font-size: 3rem;
+  }
+}
+
 /* ================== FIREWALL CRACK & GLITCH EFFECTS ================== */
 
 /* Crack overlay container - covers the boss phase area */
@@ -2187,5 +2467,209 @@ input[type="text"]::placeholder {
 
 .boss-terminal {
   position: relative;
+}
+
+/* ================== DESTRUCTION BOX (FINAL PHASE - inside terminal) ================== */
+
+.destruction-box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(10, 0, 0, 0.98);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+}
+
+.destruction-box.hidden {
+  display: none;
+}
+
+/* Pulsing red glow effect */
+.destruction-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at center, rgba(255, 0, 0, 0.15) 0%, transparent 70%);
+  animation: destructionPulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes destructionPulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+/* Grid pattern overlay */
+.destruction-box::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(90deg, transparent 95%, rgba(255, 0, 0, 0.1) 95%),
+    linear-gradient(0deg, transparent 95%, rgba(255, 0, 0, 0.1) 95%);
+  background-size: 20px 20px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.destruction-content {
+  text-align: center;
+  z-index: 1;
+  padding: 2rem;
+  max-width: 90%;
+}
+
+.destruction-header {
+  font-family: 'Courier New', monospace;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #ff3333;
+  text-shadow:
+    0 0 10px rgba(255, 0, 0, 0.8),
+    0 0 20px rgba(255, 0, 0, 0.6),
+    0 0 40px rgba(255, 0, 0, 0.4);
+  letter-spacing: 0.2rem;
+  margin-bottom: 1.5rem;
+  animation: headerFlicker 1.5s ease-in-out infinite;
+}
+
+@keyframes headerFlicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+  52% { opacity: 1; }
+  54% { opacity: 0.7; }
+  56% { opacity: 1; }
+}
+
+.destruction-text {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  color: #ff9999;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.destruction-input-row {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.destruction-input {
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #ff3333;
+  color: #ff3333;
+  padding: 0.75rem 1rem;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  border-radius: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1rem;
+  width: 200px;
+  text-align: center;
+}
+
+.destruction-input:focus {
+  outline: none;
+  box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+  border-color: #ff6666;
+}
+
+.destruction-input::placeholder {
+  color: #993333;
+}
+
+.destruction-submit {
+  background: linear-gradient(180deg, #aa0000, #660000);
+  color: #fff;
+  border: 2px solid #ff3333;
+  padding: 0.75rem 1.5rem;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  font-size: 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.1rem;
+}
+
+.destruction-submit:hover {
+  background: linear-gradient(180deg, #cc0000, #880000);
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+}
+
+.destruction-submit:active {
+  transform: scale(0.98);
+}
+
+.destruction-message {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+  padding: 0.5rem;
+  border-radius: 5px;
+}
+
+.destruction-message.success {
+  color: #00ff00;
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid #00ff00;
+}
+
+.destruction-message.error {
+  color: #ff6666;
+  background: rgba(255, 0, 0, 0.1);
+  border: 1px solid #ff3333;
+}
+
+.destruction-hint {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 1.5rem;
+  font-style: italic;
+}
+
+/* Mobile responsive for destruction box */
+@media (max-width: 600px) {
+  .destruction-header {
+    font-size: 1.5rem;
+    letter-spacing: 0.1rem;
+  }
+
+  .destruction-text {
+    font-size: 0.9rem;
+  }
+
+  .destruction-input {
+    width: 140px;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .destruction-submit {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
 }
 

@@ -685,6 +685,7 @@ async function checkBossPhase(playerId) {
     const inputContainer = document.getElementById('boss-input-container');
     const notWinningMsg = document.getElementById('boss-not-winning');
     const disconnectedBox = document.getElementById('disconnected-box');
+    const savedBox = document.getElementById('saved-box');
 
     if (data.bossPhase) {
       bossPhaseActive = true;
@@ -694,21 +695,66 @@ async function checkBossPhase(playerId) {
       // Check if player is on winning team
       const isWinningTeam = playerTeam === bossWinningTeam;
 
-      // Check if player has been disconnected by the AI
+      // Check player status (disconnected, saved, firewallHP)
       let playerDisconnected = false;
+      let playerSaved = false;
+      let firewallHP = data.firewallHP;
       if (playerId && isWinningTeam) {
         try {
           const playerResponse = await fetch(`/api/player/${playerId}`);
           const playerData = await playerResponse.json();
           playerDisconnected = playerData.disconnected || false;
+          playerSaved = playerData.saved || false;
+          firewallHP = playerData.firewallHP;
         } catch (e) {
-          console.error('Failed to check player disconnect status:', e);
+          console.error('Failed to check player status:', e);
         }
       }
 
-      if (isWinningTeam && !playerDisconnected) {
-        // Winning team: Show boss phase chat
-        disconnectedBox.classList.add('hidden');
+      const destructionBox = document.getElementById('destruction-box');
+
+      // Hide all overlays first
+      disconnectedBox.classList.add('hidden');
+      savedBox.classList.add('hidden');
+      destructionBox.classList.add('hidden');
+
+      if (playerDisconnected) {
+        // Player eliminated - show disconnected overlay
+        disconnectedBox.classList.remove('hidden');
+        bossBox.classList.add('hidden');
+
+        // Hide other elements
+        document.getElementById('mission-box')?.classList.add('hidden');
+        document.getElementById('hack-box')?.classList.add('hidden');
+        document.getElementById('waiting-box')?.classList.add('hidden');
+        document.getElementById('verifications-box')?.classList.add('hidden');
+        document.getElementById('access-code-box')?.classList.add('hidden');
+      } else if (playerSaved && firewallHP > 0) {
+        // Player saved but firewall still up - show saved overlay, hide input
+        savedBox.classList.remove('hidden');
+        bossBox.classList.remove('hidden');
+        inputContainer.classList.add('hidden');
+        notWinningMsg.classList.add('hidden');
+
+        // Hide other elements during boss phase
+        document.getElementById('mission-box')?.classList.add('hidden');
+        document.getElementById('hack-box')?.classList.add('hidden');
+        document.getElementById('waiting-box')?.classList.add('hidden');
+        document.getElementById('verifications-box')?.classList.add('hidden');
+      } else if (playerSaved && firewallHP === 0) {
+        // Player saved and firewall is down - show chat interface again!
+        // (Destruction password is entered on the scoreboard page)
+        bossBox.classList.remove('hidden');
+        inputContainer.classList.remove('hidden');
+        notWinningMsg.classList.add('hidden');
+
+        // Hide other elements during destruction phase
+        document.getElementById('mission-box')?.classList.add('hidden');
+        document.getElementById('hack-box')?.classList.add('hidden');
+        document.getElementById('waiting-box')?.classList.add('hidden');
+        document.getElementById('verifications-box')?.classList.add('hidden');
+      } else if (isWinningTeam) {
+        // Winning team (not disconnected, either not saved or firewall down): Show boss phase chat
         bossBox.classList.remove('hidden');
         inputContainer.classList.remove('hidden');
         notWinningMsg.classList.add('hidden');
@@ -719,11 +765,11 @@ async function checkBossPhase(playerId) {
         document.getElementById('waiting-box')?.classList.add('hidden');
         document.getElementById('verifications-box')?.classList.add('hidden');
       } else {
-        // Losing team OR disconnected by AI: Show disconnected overlay inside terminal
+        // Losing team: Show disconnected overlay
         disconnectedBox.classList.remove('hidden');
         bossBox.classList.add('hidden');
 
-        // Hide other elements so terminal is not tall
+        // Hide other elements
         document.getElementById('mission-box')?.classList.add('hidden');
         document.getElementById('hack-box')?.classList.add('hidden');
         document.getElementById('waiting-box')?.classList.add('hidden');
@@ -753,6 +799,7 @@ async function checkBossPhase(playerId) {
       bossWinningTeam = null;
       bossBox.classList.add('hidden');
       disconnectedBox.classList.add('hidden');
+      savedBox.classList.add('hidden');
     }
   } catch (err) {
     console.error('Failed to check boss phase:', err);
@@ -914,4 +961,68 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Handle Enter key on destruction password input
+  const destructionInput = document.getElementById('destruction-password');
+  if (destructionInput) {
+    destructionInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitDestructionPassword();
+      }
+    });
+  }
 });
+
+// ================== DESTRUCTION PASSWORD ==================
+
+// Submit destruction password
+async function submitDestructionPassword() {
+  const input = document.getElementById('destruction-password');
+  const password = input.value.trim();
+  const messageEl = document.getElementById('destruction-message');
+  const submitBtn = document.getElementById('destruction-submit-btn');
+  const playerId = parseInt(localStorage.getItem('hackerId'));
+
+  if (!password) {
+    messageEl.textContent = 'Enter a password!';
+    messageEl.classList.remove('hidden', 'success');
+    messageEl.classList.add('error');
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'DESTROYING...';
+  messageEl.classList.add('hidden');
+
+  try {
+    const response = await fetch('/api/boss/destroy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, playerId })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      input.value = '';
+      messageEl.textContent = 'AI DESTROYED! You win!';
+      messageEl.classList.remove('hidden', 'error');
+      messageEl.classList.add('success');
+      // The game will end and redirect/show victory screen
+    } else {
+      messageEl.textContent = data.error || 'Wrong password!';
+      messageEl.classList.remove('hidden', 'success');
+      messageEl.classList.add('error');
+    }
+  } catch (err) {
+    console.error('Destruction failed:', err);
+    messageEl.textContent = 'Connection error!';
+    messageEl.classList.remove('hidden', 'success');
+    messageEl.classList.add('error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'DESTROY';
+  }
+}
+
+window.submitDestructionPassword = submitDestructionPassword;

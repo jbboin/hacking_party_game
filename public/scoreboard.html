@@ -664,6 +664,117 @@
 
     .breach-flash { animation: breachFlash 0.6s ease-out; }
 
+    /* Destruction Box Styles */
+    .destruction-box {
+      width: 100%;
+      max-width: 900px;
+      margin-top: 1.5rem;
+      background: rgba(255, 0, 0, 0.15);
+      border: 2px solid #ff0000;
+      border-radius: 10px;
+      padding: 1.5rem;
+      animation: destructionPulse 1s ease-in-out infinite;
+    }
+
+    .destruction-box.hidden {
+      display: none;
+    }
+
+    @keyframes destructionPulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 0, 0.4); }
+      50% { box-shadow: 0 0 40px rgba(255, 0, 0, 0.7); }
+    }
+
+    .destruction-content {
+      text-align: center;
+    }
+
+    .destruction-header {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #ff0000;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+    }
+
+    .destruction-text {
+      color: #ffaaaa;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .destruction-input-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .destruction-input {
+      background: #1a0000;
+      border: 2px solid #ff0000;
+      color: #ff0000;
+      padding: 0.75rem 1rem;
+      font-family: 'Courier New', monospace;
+      font-size: 1.2rem;
+      border-radius: 5px;
+      width: 250px;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .destruction-input:focus {
+      outline: none;
+      box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+    }
+
+    .destruction-submit {
+      background: linear-gradient(180deg, #aa0000, #660000);
+      border: 2px solid #ff0000;
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+      font-family: 'Courier New', monospace;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+
+    .destruction-submit:hover {
+      background: linear-gradient(180deg, #cc0000, #880000);
+    }
+
+    .destruction-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .destruction-message {
+      margin-top: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .destruction-message.hidden {
+      display: none;
+    }
+
+    .destruction-message.error {
+      color: #ff6666;
+    }
+
+    .destruction-message.success {
+      color: #00ff00;
+      font-size: 1.5rem;
+      font-weight: bold;
+      animation: successPulse 0.5s ease-in-out infinite;
+    }
+
+    @keyframes successPulse {
+      0%, 100% { text-shadow: 0 0 10px rgba(0, 255, 0, 0.5); }
+      50% { text-shadow: 0 0 20px rgba(0, 255, 0, 0.9); }
+    }
+
   </style>
 </head>
 <body>
@@ -696,6 +807,18 @@
           <div class="firewall-fill" id="firewall-fill"></div>
         </div>
         <span class="firewall-hp" id="firewall-hp">5/5</span>
+      </div>
+    </div>
+    <!-- Destruction Password (shown when firewall is down) -->
+    <div id="destruction-box" class="destruction-box hidden">
+      <div class="destruction-content">
+        <div class="destruction-header">FIREWALL DESTROYED</div>
+        <div class="destruction-text">Enter the AI destruction password:</div>
+        <div class="destruction-input-row">
+          <input type="text" id="destruction-password" class="destruction-input" placeholder="ENTER PASSWORD" autocomplete="off">
+          <button type="button" id="destruction-submit-btn" class="destruction-submit" onclick="submitDestructionPassword()">DESTROY</button>
+        </div>
+        <p id="destruction-message" class="destruction-message hidden"></p>
       </div>
     </div>
   </div>
@@ -839,6 +962,16 @@
 
       // Update damage visual effects
       updateDamageEffects(hp, maxHP);
+
+      // Show/hide destruction box based on HP
+      const destructionBox = document.getElementById('destruction-box');
+      if (destructionBox) {
+        if (hp === 0) {
+          destructionBox.classList.remove('hidden');
+        } else {
+          destructionBox.classList.add('hidden');
+        }
+      }
 
       // Track HP for next comparison
       lastFirewallHP = hp;
@@ -1238,6 +1371,54 @@
 
     function formatWithNewlines(text) {
       return escapeHtml(text).replace(/\n/g, '<br>');
+    }
+
+    // Submit destruction password to destroy the AI
+    async function submitDestructionPassword() {
+      const input = document.getElementById('destruction-password');
+      const password = input.value.trim();
+      const messageEl = document.getElementById('destruction-message');
+      const submitBtn = document.getElementById('destruction-submit-btn');
+
+      if (!password) {
+        messageEl.textContent = 'Enter a password!';
+        messageEl.classList.remove('hidden', 'success');
+        messageEl.classList.add('error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'DESTROYING...';
+      messageEl.classList.add('hidden');
+
+      try {
+        const response = await fetch('/api/boss/destroy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          input.value = '';
+          messageEl.textContent = 'AI DESTROYED! Victory!';
+          messageEl.classList.remove('hidden', 'error');
+          messageEl.classList.add('success');
+        } else {
+          messageEl.textContent = data.error || 'Wrong password!';
+          messageEl.classList.remove('hidden', 'success');
+          messageEl.classList.add('error');
+        }
+      } catch (err) {
+        console.error('Destruction failed:', err);
+        messageEl.textContent = 'Connection error!';
+        messageEl.classList.remove('hidden', 'success');
+        messageEl.classList.add('error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'DESTROY';
+      }
     }
 
     // Initial load

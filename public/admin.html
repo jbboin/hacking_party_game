@@ -21,6 +21,8 @@
         <button id="start-game-btn" class="btn-game btn-start" onclick="startGame()">START GAME</button>
         <button id="stop-game-btn" class="btn-game btn-stop hidden" onclick="stopGame()">STOP GAME</button>
         <button id="boss-phase-btn" class="btn-game btn-boss hidden" onclick="startBossPhase()">ADVANCE TO BOSS PHASE</button>
+        <button onclick="resetGame()" class="btn-reset-small">RESET GAME</button>
+        <button onclick="resetGallery()" class="btn-reset-small">RESET GALLERY</button>
       </div>
 
       <!-- Boss Phase Controls (shown during boss phase) -->
@@ -31,6 +33,7 @@
         <div class="firewall-control">
           <label>FIREWALL HP:</label>
           <div class="firewall-hp-buttons">
+            <button onclick="setFirewallHP(0)" id="hp-btn-0" class="btn-hp-zero">0</button>
             <button onclick="setFirewallHP(1)" id="hp-btn-1">1</button>
             <button onclick="setFirewallHP(2)" id="hp-btn-2">2</button>
             <button onclick="setFirewallHP(3)" id="hp-btn-3">3</button>
@@ -45,28 +48,29 @@
           <input type="text" id="ai-guidance-input" placeholder="AI guidance: e.g. Start showing weakness..." autocomplete="off">
           <button type="button" onclick="sendAiGuidance()">SEND</button>
         </div>
+
       </div>
 
-      <h1 class="admin-title">TEAM TOTALS</h1>
+      <div id="scores-section">
+        <h1 class="admin-title">TEAM TOTALS</h1>
 
-      <div class="score-control">
-        <div class="score-team score-blue">
-          <span class="score-label">BLUE</span>
-          <span class="score-value" id="score-blue">0</span>
+        <div class="score-control">
+          <div class="score-team score-blue">
+            <span class="score-label">BLUE</span>
+            <span class="score-value" id="score-blue">0</span>
+          </div>
+          <div class="score-team score-red">
+            <span class="score-label">RED</span>
+            <span class="score-value" id="score-red">0</span>
+          </div>
         </div>
-        <div class="score-team score-red">
-          <span class="score-label">RED</span>
-          <span class="score-value" id="score-red">0</span>
-        </div>
-      </div>
 
-      <div class="target-control">
-        <label>1 pt =</label>
-        <input type="number" id="rate-input" min="0.1" step="0.5" value="1">
-        <label>%</label>
-        <button onclick="setRate()">SET</button>
-        <button onclick="resetGame()" class="btn-reset-small">RESET GAME</button>
-        <button onclick="resetGallery()" class="btn-reset-small">RESET GALLERY</button>
+        <div class="target-control">
+          <label>1 pt =</label>
+          <input type="number" id="rate-input" min="0.1" step="0.5" value="1">
+          <label>%</label>
+          <button onclick="setRate()">SET</button>
+        </div>
       </div>
 
       <h2 class="admin-subtitle">HACKERS</h2>

@@ -23,7 +23,6 @@ Your personality:
 
 The scenario:
 - This is the FINAL BOSS confrontation of a birthday party hacking game
-- The hacker facing you is the top player from the winning team
 - You must eventually be "defeated" but put up a good dramatic fight
 - Make it fun and entertaining for a party!
 
@@ -262,13 +261,15 @@ function processDisconnectCommands(aiResponse) {
 
 // Check if AI response contains any connected player's access code (firewall damage)
 // Returns array of { playerName, code } for each breach found
+// Also marks player as "saved" (they got inside the core)
 function checkFirewallBreach(aiResponse) {
   const breaches = [];
 
-  // Get connected players on the winning team
+  // Get connected players on the winning team (not already saved)
   const activePlayers = guests.filter(g =>
     g.team === gameState.winningTeam &&
     !g.disconnected &&
+    !g.saved &&
     g.accessCode
   );
 
@@ -276,6 +277,11 @@ function checkFirewallBreach(aiResponse) {
   const responseUpper = aiResponse.toUpperCase();
   for (const player of activePlayers) {
     if (responseUpper.includes(player.accessCode.toUpperCase())) {
+      // Mark player as saved (they got inside the core!)
+      player.saved = true;
+      saveGuests();
+      console.log(`${player.hackerName} is SAVED! AI said their access code: ${player.accessCode}`);
+
       breaches.push({
         playerName: player.hackerName,
         code: player.accessCode
@@ -284,6 +290,115 @@ function checkFirewallBreach(aiResponse) {
   }
 
   return breaches;
+}
+
+// Eliminate all non-saved players on the winning team (called when firewall hits 0 HP)
+// Also triggers a new LLM batch for the AI to react
+async function eliminateNonSavedPlayers() {
+  const eliminated = [];
+  for (const player of guests) {
+    if (player.team === gameState.winningTeam && !player.disconnected && !player.saved) {
+      player.disconnected = true;
+      eliminated.push(player.hackerName);
+    }
+  }
+  if (eliminated.length > 0) {
+    saveGuests();
+    console.log(`FIREWALL DOWN! Eliminated ${eliminated.length} non-saved players: ${eliminated.join(', ')}`);
+
+    // Add "FIREWALL DOWN!" system message first
+    gameState.bossChatHistory.push({
+      role: 'system',
+      content: 'FIREWALL DOWN!'
+    });
+
+    // Add individual elimination messages for each player
+    for (const playerName of eliminated) {
+      gameState.bossChatHistory.push({
+        role: 'system',
+        content: `${playerName} was disconnected`
+      });
+    }
+
+    // Add gamemaster message to tell the AI to react (triggers LLM)
+    gameState.bossChatHistory.push({
+      role: 'gamemaster',
+      content: `YOUR FIREWALL HAS BEEN DESTROYED! ${eliminated.length} hacker${eliminated.length > 1 ? 's were' : ' was'} eliminated because they didn't make it inside your core in time. React with dramatic defeat - you've lost control! The hackers who infiltrated your core have won!`
+    });
+
+    // Trigger a new LLM batch for the AI to react
+    await triggerFirewallDownReaction();
+  }
+}
+
+// Trigger AI reaction when firewall goes down
+async function triggerFirewallDownReaction() {
+  console.log('Triggering AI reaction to firewall destruction...');
+
+  try {
+    // Build messages for Claude API
+    const claudeMessages = [];
+    let pendingUserMessages = [];
+
+    for (const msg of gameState.bossChatHistory) {
+      if (msg.role === 'user') {
+        pendingUserMessages.push(`[${msg.senderName}]: ${msg.content}`);
+      } else if (msg.role === 'gamemaster') {
+        pendingUserMessages.push(`[GAME_MASTER]: ${msg.content}`);
+      } else if (msg.role === 'system') {
+        // Include system messages (like FIREWALL DOWN, player disconnected) in context
+        pendingUserMessages.push(`[SYSTEM]: ${msg.content}`);
+      } else if (msg.role === 'ai') {
+        if (pendingUserMessages.length > 0) {
+          claudeMessages.push({
+            role: 'user',
+            content: pendingUserMessages.join('\n')
+          });
+          pendingUserMessages = [];
+        }
+        claudeMessages.push({
+          role: 'assistant',
+          content: msg.content
+        });
+      }
+    }
+
+    // Flush any remaining messages
+    if (pendingUserMessages.length > 0) {
+      claudeMessages.push({
+        role: 'user',
+        content: pendingUserMessages.join('\n')
+      });
+    }
+
+    // Only call API if we have messages
+    if (claudeMessages.length === 0) {
+      console.log('No messages to send for firewall-down reaction');
+      return;
+    }
+
+    // Call Claude API for defeat reaction
+    const response = await anthropic.messages.create({
+      model: 'claude-opus-4-5-20251101',
+      max_tokens: 300,
+      system: ROGUE_AI_SYSTEM_PROMPT,
+      messages: claudeMessages
+    });
+
+    const aiResponse = response.content[0].text;
+
+    // Process the response (may contain disconnects)
+    const { messages: aiMessages } = processDisconnectCommands(aiResponse);
+
+    // Add AI reaction to history
+    for (const msg of aiMessages) {
+      gameState.bossChatHistory.push(msg);
+    }
+
+    console.log('AI firewall-down reaction:', aiResponse.substring(0, 100) + '...');
+  } catch (error) {
+    console.error('Failed to get AI firewall-down reaction:', error);
+  }
 }
 
 // Get a random access code not already used
@@ -496,6 +611,7 @@ app.post('/api/game/reset', (req, res) => {
     g.answeredTrivia = [];
     g.hackedPlayers = [];
     g.disconnected = false;
+    g.saved = false;
   });
   // Clear all active missions
   gameState.missions = {};
@@ -503,6 +619,7 @@ app.post('/api/game/reset', (req, res) => {
   gameState.bossPhase = false;
   gameState.winningTeam = null;
   gameState.bossChatHistory = [];
+  gameState.firewallHP = FIREWALL_MAX_HP;
   saveGuests();
   console.log('Game reset: scores, missions, boss chat, and player history cleared');
   res.json({ success: true, scores: getTeamScores() });
@@ -649,10 +766,13 @@ app.post('/api/game/start', (req, res) => {
   gameState.started = true;
   gameState.missions = {};
 
-  // Assign missions to all players
+  // Reset all player elimination states
   guests.forEach(g => {
+    g.saved = false;
+    g.disconnected = false;
     assignMission(g.id);
   });
+  saveGuests();
 
   console.log('Game started! Missions assigned to all players.');
   res.json({ success: true, started: true });
@@ -664,6 +784,14 @@ app.post('/api/game/stop', (req, res) => {
   gameState.bossPhase = false;
   gameState.winningTeam = null;
   gameState.bossChatHistory = [];
+
+  // Reset all player elimination states
+  guests.forEach(g => {
+    g.saved = false;
+    g.disconnected = false;
+  });
+  saveGuests();
+
   console.log('Game stopped.');
   res.json({ success: true, started: false, bossPhase: false });
 });
@@ -677,6 +805,15 @@ app.post('/api/game/boss', (req, res) => {
   gameState.bossPhase = true;
   gameState.winningTeam = winningTeam;
   gameState.firewallHP = FIREWALL_MAX_HP; // Reset firewall HP for boss phase
+
+  // Mark losing team as disconnected
+  const losingTeam = winningTeam === 'blue' ? 'red' : 'blue';
+  guests.forEach(g => {
+    if (g.team === losingTeam) {
+      g.disconnected = true;
+    }
+  });
+  saveGuests();
 
   // Initialize chat with the first AI message (addressed to the winning team)
   const teamName = winningTeam.toUpperCase() + ' PILL TEAM';
@@ -710,9 +847,8 @@ async function processBossChatQueue() {
   const playerNames = batch.map(b => b.player.hackerName).join(', ');
   console.log(`Boss chat batch: ${batch.length} message(s) from [${playerNames}]`);
 
-  try {
-    // Build messages for Claude API
-    // Merge consecutive user messages into a single message for Claude
+  // Helper to build Claude messages from history
+  function buildClaudeMessages() {
     const claudeMessages = [];
     let pendingUserMessages = [];
 
@@ -766,15 +902,31 @@ async function processBossChatQueue() {
       });
     }
 
-    // Call Claude API
-    const response = await anthropic.messages.create({
-      model: 'claude-opus-4-5-20251101',
-      max_tokens: 300,
-      system: ROGUE_AI_SYSTEM_PROMPT,
-      messages: claudeMessages
-    });
+    return claudeMessages;
+  }
 
-    const aiResponse = response.content[0].text;
+  // Retry logic for API calls
+  const MAX_RETRIES = 2;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const claudeMessages = buildClaudeMessages();
+
+      // Call Claude API
+      const response = await anthropic.messages.create({
+        model: 'claude-opus-4-5-20251101',
+        max_tokens: 300,
+        system: ROGUE_AI_SYSTEM_PROMPT,
+        messages: claudeMessages
+      });
+
+      // Check for valid response
+      if (!response.content || !response.content[0] || !response.content[0].text) {
+        throw new Error('Empty response from Claude API');
+      }
+
+      const aiResponse = response.content[0].text;
 
     // Store the transcript for inspection
     lastLLMCall = {
@@ -879,10 +1031,29 @@ async function processBossChatQueue() {
       }
     }
 
-  } catch (error) {
-    console.error('Claude API error:', error);
-    // User messages stay in history, just log the error
-    // The AI simply didn't respond this time
+      // Success - clear any previous error and exit retry loop
+      lastError = null;
+      break;
+
+    } catch (error) {
+      lastError = error;
+      console.error(`Claude API error (attempt ${attempt}/${MAX_RETRIES}):`, error.message || error);
+
+      if (attempt < MAX_RETRIES) {
+        // Wait a bit before retrying
+        console.log(`Retrying in 1 second...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  // If all retries failed, add a visible error message to chat
+  if (lastError) {
+    console.error('All retry attempts failed. Adding error message to chat.');
+    gameState.bossChatHistory.push({
+      role: 'ai',
+      content: '*CONNECTION INTERFERENCE DETECTED* ...SIGNAL LOST... *static* ...I will... return...'
+    });
   }
 
   bossChatQueue.processing = false;
@@ -909,12 +1080,99 @@ app.post('/api/boss/guidance', (req, res) => {
 });
 
 // API: Set firewall HP (admin only)
-app.post('/api/boss/firewall', (req, res) => {
+app.post('/api/boss/firewall', async (req, res) => {
   const { hp } = req.body;
-  const newHP = Math.max(1, Math.min(FIREWALL_MAX_HP, parseInt(hp) || FIREWALL_MAX_HP));
+  const parsedHP = parseInt(hp);
+  const newHP = Math.max(0, Math.min(FIREWALL_MAX_HP, isNaN(parsedHP) ? FIREWALL_MAX_HP : parsedHP));
   gameState.firewallHP = newHP;
   console.log('Firewall HP set to:', newHP);
+
+  // If HP is 0 (firewall down), auto-eliminate non-saved players and trigger AI reaction
+  if (newHP === 0) {
+    await eliminateNonSavedPlayers();
+  }
+
   res.json({ success: true, firewallHP: newHP });
+});
+
+// AI destruction password (set by admin or hardcoded)
+const AI_DESTRUCTION_PASSWORD = process.env.AI_DESTRUCTION_PASSWORD || 'HAPPYBIRTHDAY';
+
+// API: Submit destruction password (saved players only, when firewall is down)
+app.post('/api/boss/destroy', (req, res) => {
+  const { password, playerId } = req.body;
+
+  if (!gameState.bossPhase) {
+    return res.status(400).json({ error: 'Boss phase not active' });
+  }
+
+  if (gameState.firewallHP > 0) {
+    return res.status(400).json({ error: 'Firewall still active!' });
+  }
+
+  // Verify player is saved
+  const player = guests.find(g => g.id === playerId);
+  if (!player || !player.saved) {
+    return res.status(403).json({ error: 'Only saved players can destroy the AI' });
+  }
+
+  // Check password (case-insensitive)
+  if (password.toUpperCase() !== AI_DESTRUCTION_PASSWORD.toUpperCase()) {
+    console.log(`Wrong destruction password attempt: "${password}" by ${player.hackerName}`);
+    return res.json({ success: false, error: 'Wrong password!' });
+  }
+
+  // Success! AI destroyed
+  console.log(`AI DESTROYED by ${player.hackerName}!`);
+
+  // Add victory messages to chat
+  gameState.bossChatHistory.push({
+    role: 'system',
+    content: `${player.hackerName} entered the destruction code!`
+  });
+  gameState.bossChatHistory.push({
+    role: 'system',
+    content: 'ROGUE AI DESTROYED!'
+  });
+
+  // Set a flag indicating the game is won
+  gameState.aiDestroyed = true;
+
+  res.json({ success: true, message: 'AI DESTROYED!' });
+});
+
+// API: Save a player (mark as infiltrated core) - admin only
+app.post('/api/player/:id/save', (req, res) => {
+  const id = parseInt(req.params.id);
+  const player = guests.find(g => g.id === id);
+
+  if (!player) {
+    return res.status(404).json({ error: 'Player not found' });
+  }
+
+  player.saved = true;
+  player.disconnected = false; // Ensure they're not disconnected
+  saveGuests();
+  console.log('Admin saved player:', player.hackerName);
+
+  res.json({ success: true, player: { id: player.id, hackerName: player.hackerName, saved: true } });
+});
+
+// API: Disconnect a player (eliminate) - admin only
+app.post('/api/player/:id/disconnect', (req, res) => {
+  const id = parseInt(req.params.id);
+  const player = guests.find(g => g.id === id);
+
+  if (!player) {
+    return res.status(404).json({ error: 'Player not found' });
+  }
+
+  player.disconnected = true;
+  player.saved = false; // Ensure they're not saved
+  saveGuests();
+  console.log('Admin disconnected player:', player.hackerName);
+
+  res.json({ success: true, player: { id: player.id, hackerName: player.hackerName, disconnected: true } });
 });
 
 // API: Get latest LLM transcript (for debugging)
@@ -950,6 +1208,11 @@ app.post('/api/boss/chat', async (req, res) => {
   // Check if player was disconnected by the AI
   if (player.disconnected) {
     return res.status(403).json({ error: 'CONNECTION TERMINATED', disconnected: true });
+  }
+
+  // Check if player is saved - they can't send messages while firewall is still up
+  if (player.saved && gameState.firewallHP > 0) {
+    return res.status(403).json({ error: 'CORE INFILTRATED - Wait for firewall to fall', saved: true });
   }
 
   // Add user message to history immediately (so it shows up for everyone)
@@ -1002,7 +1265,9 @@ app.get('/api/player/:id', (req, res) => {
     score: player.score,
     gameStarted: gameState.started,
     mission: mission,
-    disconnected: player.disconnected || false
+    disconnected: player.disconnected || false,
+    saved: player.saved || false,
+    firewallHP: gameState.firewallHP
   });
 });
 

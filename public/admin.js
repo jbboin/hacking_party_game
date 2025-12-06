@@ -1,9 +1,18 @@
+// Track boss mode state globally
+let isBossMode = false;
+
 // Load game state
 async function loadGameState() {
   try {
     const response = await fetch('/api/game');
     const data = await response.json();
+    const wasBossMode = isBossMode;
+    isBossMode = data.bossPhase || false;
     updateGameUI(data.started, data.bossPhase, data.firewallHP);
+    // Reload guests if boss mode changed (to update buttons)
+    if (wasBossMode !== isBossMode) {
+      loadGuests();
+    }
   } catch (error) {
     console.error('Failed to load game state:', error);
   }
@@ -16,6 +25,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5) {
   const stopBtn = document.getElementById('stop-game-btn');
   const bossBtn = document.getElementById('boss-phase-btn');
   const bossControlsBox = document.getElementById('boss-controls-box');
+  const scoresSection = document.getElementById('scores-section');
 
   if (bossPhase) {
     statusEl.textContent = 'GAME: BOSS PHASE';
@@ -24,6 +34,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5) {
     stopBtn.classList.remove('hidden');
     bossBtn.classList.add('hidden');
     bossControlsBox.classList.remove('hidden');
+    if (scoresSection) scoresSection.classList.add('hidden');
     updateFirewallHPDisplay(firewallHP);
   } else if (isRunning) {
     statusEl.textContent = 'GAME: RUNNING';
@@ -32,6 +43,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5) {
     stopBtn.classList.remove('hidden');
     bossBtn.classList.remove('hidden');
     bossControlsBox.classList.add('hidden');
+    if (scoresSection) scoresSection.classList.remove('hidden');
   } else {
     statusEl.textContent = 'GAME: STOPPED';
     statusEl.className = 'game-status stopped';
@@ -39,6 +51,7 @@ function updateGameUI(isRunning, bossPhase = false, firewallHP = 5) {
     stopBtn.classList.add('hidden');
     bossBtn.classList.add('hidden');
     bossControlsBox.classList.add('hidden');
+    if (scoresSection) scoresSection.classList.remove('hidden');
   }
 }
 
@@ -47,8 +60,8 @@ function updateFirewallHPDisplay(hp) {
   const hpValueEl = document.getElementById('firewall-hp-value');
   if (hpValueEl) hpValueEl.textContent = hp;
 
-  // Highlight the active HP button
-  for (let i = 1; i <= 5; i++) {
+  // Highlight the active HP button (0-5)
+  for (let i = 0; i <= 5; i++) {
     const btn = document.getElementById(`hp-btn-${i}`);
     if (btn) {
       if (i === hp) {
@@ -234,6 +247,44 @@ async function rerollMission(id) {
   }
 }
 
+// Save a player (mark as infiltrated core)
+async function savePlayer(id) {
+  try {
+    const response = await fetch(`/api/player/${id}/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    if (data.success) {
+      console.log('Player saved!');
+      loadGuests();
+    } else {
+      alert(data.error || 'Failed to save player');
+    }
+  } catch (error) {
+    console.error('Failed to save player:', error);
+  }
+}
+
+// Disconnect a player (eliminate)
+async function disconnectPlayer(id) {
+  try {
+    const response = await fetch(`/api/player/${id}/disconnect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    if (data.success) {
+      console.log('Player disconnected!');
+      loadGuests();
+    } else {
+      alert(data.error || 'Failed to disconnect player');
+    }
+  } catch (error) {
+    console.error('Failed to disconnect player:', error);
+  }
+}
+
 // Fetch and display guests
 async function loadGuests() {
   const listEl = document.getElementById('guest-list');
@@ -264,18 +315,36 @@ async function loadGuests() {
       const teamClass = guest.team === 'red' ? 'team-red-border' : 'team-blue-border';
       const teamTextClass = guest.team === 'red' ? 'team-red-text' : 'team-blue-text';
 
-      return `
-        <div class="guest-card ${teamClass}">
-          <span class="guest-name">${escapeHtml(guest.hackerName)}</span>
-          <div class="player-score-control">
-            <button onclick="addPlayerPoints(${guest.id}, -1)">-</button>
-            <span class="player-score ${teamTextClass}" id="player-score-${guest.id}">${guest.score || 0}</span>
-            <button onclick="addPlayerPoints(${guest.id}, 1)">+</button>
+      if (isBossMode) {
+        // Boss mode: show SAVE/DISCONNECT buttons, status indicators
+        const statusText = guest.saved ? '✓ SAVED' : (guest.disconnected ? '✗ DISCONNECTED' : '');
+        const statusClass = guest.saved ? 'status-saved' : (guest.disconnected ? 'status-disconnected' : '');
+        return `
+          <div class="guest-card ${teamClass}">
+            <span class="guest-name">${escapeHtml(guest.hackerName)}</span>
+            ${statusText ? `<span class="player-status ${statusClass}">${statusText}</span>` : ''}
+            ${!guest.saved && !guest.disconnected ? `
+              <button class="btn-save" onclick="savePlayer(${guest.id})">SAVE</button>
+              <button class="btn-disconnect" onclick="disconnectPlayer(${guest.id})">DISCONNECT</button>
+            ` : ''}
+            <button class="btn-delete" onclick="deleteGuest(${guest.id})">X</button>
           </div>
-          <button class="btn-reroll" onclick="rerollMission(${guest.id})">REROLL</button>
-          <button class="btn-delete" onclick="deleteGuest(${guest.id})">X</button>
-        </div>
-      `;
+        `;
+      } else {
+        // Normal mode: show score controls and reroll
+        return `
+          <div class="guest-card ${teamClass}">
+            <span class="guest-name">${escapeHtml(guest.hackerName)}</span>
+            <div class="player-score-control">
+              <button onclick="addPlayerPoints(${guest.id}, -1)">-</button>
+              <span class="player-score ${teamTextClass}" id="player-score-${guest.id}">${guest.score || 0}</span>
+              <button onclick="addPlayerPoints(${guest.id}, 1)">+</button>
+            </div>
+            <button class="btn-reroll" onclick="rerollMission(${guest.id})">REROLL</button>
+            <button class="btn-delete" onclick="deleteGuest(${guest.id})">X</button>
+          </div>
+        `;
+      }
     }).join('');
 
   } catch (error) {

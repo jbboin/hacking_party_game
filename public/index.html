@@ -66,6 +66,28 @@
           </div>
         </div>
 
+        <!-- Saved Overlay (for players who infiltrated the core) -->
+        <div id="saved-box" class="saved-box hidden">
+          <div class="saved-content">
+            <div class="saved-text">CORE INFILTRATED</div>
+            <div class="saved-subtext">You're inside! Wait for the firewall to fall...</div>
+          </div>
+        </div>
+
+        <!-- Destruction Phase (for saved players when firewall is down) -->
+        <div id="destruction-box" class="destruction-box hidden">
+          <div class="destruction-content">
+            <div class="destruction-header">FIREWALL DESTROYED</div>
+            <div class="destruction-text">You're inside the core! Enter the AI destruction password:</div>
+            <div class="destruction-input-row">
+              <input type="text" id="destruction-password" class="destruction-input" placeholder="ENTER PASSWORD" autocomplete="off">
+              <button type="button" id="destruction-submit-btn" class="destruction-submit" onclick="submitDestructionPassword()">DESTROY</button>
+            </div>
+            <p id="destruction-message" class="destruction-message hidden"></p>
+            <p class="destruction-hint">Hint: Ask the birthday boy!</p>
+          </div>
+        </div>
+
         <h1 class="glitch success" data-text="ACCESS GRANTED">ACCESS GRANTED</h1>
         <p class="welcome-text">Welcome, <span id="display-name"></span></p>
         <div class="badges-row">
