@@ -819,18 +819,6 @@
         <span class="firewall-hp" id="firewall-hp">5/5</span>
       </div>
     </div>
-    <!-- Destruction Password (shown when firewall is down) -->
-    <div id="destruction-box" class="destruction-box hidden">
-      <div class="destruction-content">
-        <div class="destruction-header">FIREWALL DESTROYED</div>
-        <div class="destruction-text">Enter the AI destruction password:</div>
-        <div class="destruction-input-row">
-          <input type="text" id="destruction-password" class="destruction-input" placeholder="ENTER PASSWORD" autocomplete="off">
-          <button type="button" id="destruction-submit-btn" class="destruction-submit" onclick="submitDestructionPassword()">DESTROY</button>
-        </div>
-        <p id="destruction-message" class="destruction-message hidden"></p>
-      </div>
-    </div>
   </div>
 
   <h1>HACKING THE MAINFRAME</h1>
@@ -1180,13 +1168,13 @@
         return;
       }
 
-      // Scale chances based on damage level (no effects at full health)
-      // Shake: up to 40% at 0 health
-      glitchConfig.effects.shake.chance = 0.4 * strength;
-      glitchConfig.effects.shake.strength = strength;
+      // Fixed chances regardless of health level
+      // Shake: always 40% chance
+      glitchConfig.effects.shake.chance = 0.4;
+      glitchConfig.effects.shake.strength = strength * 0.6;
 
-      // Overlay: up to 70% at 0 health
-      glitchConfig.effects.overlay.chance = 0.7 * strength;
+      // Overlay: always 70% chance
+      glitchConfig.effects.overlay.chance = 0.7;
       glitchConfig.effects.overlay.strength = strength;
 
       // Random tick interval: 2s at full health, 1s at 0 health, linear between
