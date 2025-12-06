@@ -986,6 +986,58 @@ app.post('/api/game/boss', (req, res) => {
   });
 });
 
+// Helper function to process core AI response
+async function processCoreAIResponse() {
+  gameState.coreAiProcessing = true;
+
+  try {
+    // Build messages for Claude
+    const claudeMessages = gameState.coreChatHistory.map(msg => {
+      if (msg.role === 'user') {
+        return { role: 'user', content: `[${msg.senderName}]: ${msg.content}` };
+      } else if (msg.role === 'ai') {
+        return { role: 'assistant', content: msg.content };
+      }
+      return null;
+    }).filter(Boolean);
+
+    // Call Claude API
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 300,
+      system: CORE_AI_SYSTEM_PROMPT,
+      messages: claudeMessages
+    });
+
+    const aiResponse = response.content[0]?.text || '';
+
+    // Store transcript for debugging
+    lastLLMCall = {
+      timestamp: new Date().toISOString(),
+      phase: 'core',
+      systemPrompt: CORE_AI_SYSTEM_PROMPT,
+      messages: claudeMessages,
+      response: aiResponse
+    };
+
+    // Add AI response to core chat history
+    gameState.coreChatHistory.push({
+      role: 'ai',
+      content: aiResponse
+    });
+
+    console.log('Core AI response:', aiResponse);
+  } catch (err) {
+    console.error('Core AI error:', err);
+    gameState.coreChatHistory.push({
+      role: 'ai',
+      content: '[CRITICAL ERROR] ...systems... failing...'
+    });
+  } finally {
+    gameState.coreAiProcessing = false;
+  }
+}
+
 // Start core phase (final phase after firewall is down)
 app.post('/api/game/core', (req, res) => {
   if (!gameState.bossPhase) {
@@ -1003,18 +1055,21 @@ app.post('/api/game/core', (req, res) => {
   gameState.coreAiProcessing = false;
   gameState.gameWon = false;
 
-  // Add initial system message with player roster
+  // Build roster message to send to AI (not shown in chat, but triggers AI response)
   const rosterMessage = numPlayers > 0
-    ? `CORE ACCESS GRANTED. Hackers inside: ${playerNames.join(', ')}. Q.W.E.E.N. can eliminate ${canEliminate} more before one remains.`
-    : 'CORE ACCESS GRANTED. No hackers detected inside the core.';
+    ? `CORE ACCESS GRANTED. Hackers inside: ${playerNames.join(', ')}. You can eliminate ${canEliminate} more before one remains. Greet them in your broken, glitchy way.`
+    : 'CORE ACCESS GRANTED. No hackers detected inside the core. React to this emptiness in your broken state.';
 
+  // Add as a SYSTEM user message (will be sent to AI but shown differently)
   gameState.coreChatHistory.push({
-    role: 'system',
-    content: rosterMessage
+    role: 'user',
+    content: rosterMessage,
+    senderName: 'SYSTEM'
   });
 
   console.log('Core phase started!', { savedPlayers: playerNames, canEliminate });
 
+  // Respond immediately, then process AI response asynchronously
   res.json({
     success: true,
     started: gameState.started,
@@ -1022,6 +1077,9 @@ app.post('/api/game/core', (req, res) => {
     corePhase: true,
     winningTeam: gameState.winningTeam
   });
+
+  // Trigger AI response asynchronously
+  processCoreAIResponse();
 });
 
 // Process the queued boss chat messages
