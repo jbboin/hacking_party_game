@@ -272,7 +272,6 @@
       width: 100%;
       background: #1a1a1a;
       border-radius: 10px;
-      box-shadow: 0 0 30px rgba(0, 255, 0, 0.2);
     }
 
     .mission-brief-terminal-header {
@@ -283,6 +282,16 @@
       align-items: center;
       gap: 0.5rem;
     }
+
+    .mission-brief-terminal-header .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .mission-brief-terminal-header .dot.red { background: #ff5f56; }
+    .mission-brief-terminal-header .dot.yellow { background: #ffbd2e; }
+    .mission-brief-terminal-header .dot.green { background: #27ca40; }
 
     .mission-brief-terminal-title {
       margin-left: auto;
