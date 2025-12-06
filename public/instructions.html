@@ -72,27 +72,7 @@
       width: 180px;
       height: 180px;
     }
-    .qr-url {
-      font-size: 1rem;
-      color: #666;
-      margin-top: 10px;
-    }
-    .print-btn {
-      display: block;
-      margin: 30px auto;
-      padding: 15px 30px;
-      font-size: 1.2rem;
-      background: #000;
-      color: #fff;
-      border: none;
-      cursor: pointer;
-      font-family: inherit;
-    }
-    .print-btn:hover {
-      background: #333;
-    }
     @media print {
-      .print-btn { display: none; }
       body { padding: 20px; }
     }
   </style>
@@ -100,8 +80,6 @@
 <body>
   <h1>Welcome, Hacker</h1>
   <p class="subtitle">Follow these steps to join the mission</p>
-
-  <button class="print-btn" onclick="window.print()">PRINT THIS PAGE</button>
 
   <ol class="instructions">
     <li class="instruction">
@@ -119,7 +97,6 @@
         <div class="step-description">Connect to the WiFi, then scan to access the hackerspace.</div>
         <div class="qr-section">
           <img id="join-qr" alt="Join QR Code">
-          <div class="qr-url" id="join-url"></div>
         </div>
       </div>
     </li>
@@ -143,7 +120,6 @@
 
   <script>
     const baseUrl = `http://${window.location.hostname}:${window.location.port || 3000}`;
-    document.getElementById('join-url').textContent = baseUrl;
     document.getElementById('join-qr').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(baseUrl)}`;
   </script>
 </body>
