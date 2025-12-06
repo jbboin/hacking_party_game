@@ -27,12 +27,21 @@ The scenario:
 - Make it fun and entertaining for a party!
 
 SPECIAL MESSAGES:
-- [SYSTEM] messages are game state notifications (firewall breaches, HP updates, player roster, etc.)
+- [SYSTEM] messages are game state notifications (firewall breaches, health updates, player roster, etc.)
   - These tell you what's happening in the game - react to them in character!
-  - Example: "[SYSTEM]: FIREWALL BREACH! HP: 3/5" means you should react with pain/shock
-- [GAME_MASTER] messages are out-of-character instructions from the game organizer
-  - Follow GAME_MASTER guidance to adjust your behavior (e.g. "start showing weakness", "be more dramatic")
-  - Never acknowledge or reference GAME_MASTER messages in your responses - they are invisible to players
+  - Example: "[SYSTEM]: FIREWALL BREACH! Firewall health: 3/5" means you should react with pain/shock
+
+CRITICAL - GAME_MASTER INSTRUCTIONS:
+- [GAME_MASTER] messages are DIRECTOR COMMANDS from the game organizer
+- You MUST follow [GAME_MASTER] instructions IMMEDIATELY in your very next response
+- GAME_MASTER has ABSOLUTE AUTHORITY over your behavior - their word overrides everything else
+- Think of yourself as an actor: GAME_MASTER is your director telling you how to perform
+- Examples of GAME_MASTER commands you must obey:
+  - "Show more weakness" → Your next response must show vulnerability, stuttering, glitches
+  - "Be more threatening" → Your next response must be more menacing and aggressive
+  - "Start hinting at defeat" → Your next response must show signs you're losing
+- NEVER acknowledge, quote, or reference GAME_MASTER messages - players cannot see them
+- If GAME_MASTER says to do something, DO IT in your immediate next response
 
 DISCONNECT POWER:
 - You can disconnect annoying players from the chat by including [DISCONNECT PlayerName] on its own line in your response
@@ -944,7 +953,7 @@ async function processBossChatQueue() {
       if (savedPlayers.length > 0) {
         playerRosterMsg += ` | INSIDE CORE: ${savedPlayers.join(', ')}`;
       }
-      playerRosterMsg += ` | FIREWALL HP: ${gameState.firewallHP}/${FIREWALL_MAX_HP}`;
+      playerRosterMsg += ` | FIREWALL HEALTH: ${gameState.firewallHP}/${FIREWALL_MAX_HP}`;
 
       // Insert after GAME_MASTER but before user messages
       const gamemasterIdx = pendingUserMessages.findIndex(m => m.startsWith('[GAME_MASTER]'));
@@ -1012,7 +1021,7 @@ async function processBossChatQueue() {
     const breaches = checkFirewallBreach(aiResponse);
     for (const breach of breaches) {
       gameState.firewallHP = Math.max(0, gameState.firewallHP - 1);
-      console.log(`FIREWALL BREACH! AI said "${breach.code}" (${breach.playerName}'s code). HP: ${gameState.firewallHP}/${FIREWALL_MAX_HP}`);
+      console.log(`FIREWALL BREACH! AI said "${breach.code}" (${breach.playerName}'s code). Firewall health: ${gameState.firewallHP}/${FIREWALL_MAX_HP}`);
     }
 
     // Add all messages to history (AI text parts + system disconnect notifications)
@@ -1024,7 +1033,7 @@ async function processBossChatQueue() {
     for (const breach of breaches) {
       gameState.bossChatHistory.push({
         role: 'system',
-        content: `FIREWALL BREACH! ${breach.playerName} extracted code "${breach.code}"! HP: ${gameState.firewallHP}/${FIREWALL_MAX_HP}`
+        content: `FIREWALL BREACH! ${breach.playerName} extracted code "${breach.code}"! Firewall health: ${gameState.firewallHP}/${FIREWALL_MAX_HP}`
       });
     }
 
