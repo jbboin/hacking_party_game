@@ -648,28 +648,44 @@ async function fetchPlayerData(playerId) {
 
 // Start polling for player updates
 let pollingActive = false;
+let pollTimeoutId = null;
+let currentPlayerId = null;
 
 function startPlayerPolling(playerId) {
+  currentPlayerId = playerId;
   // Initial fetch
   fetchPlayerData(playerId);
   fetchVerifications(playerId);
   checkBossPhase(playerId);
 
-  // Dynamic polling: 200ms when AI is processing/streaming, 2000ms otherwise
+  // Dynamic polling: 300ms when AI is streaming, 2000ms otherwise
   pollingActive = true;
   function poll() {
     if (!pollingActive) return;
-    fetchPlayerData(playerId);
+    fetchPlayerData(currentPlayerId);
     // Skip verifications during boss phase
     if (!bossPhaseActive) {
-      fetchVerifications(playerId);
+      fetchVerifications(currentPlayerId);
     }
-    checkBossPhase(playerId);
-    // Poll faster when AI is streaming, slower otherwise
-    const delay = bossAiProcessing ? 200 : 2000;
-    setTimeout(poll, delay);
+    checkBossPhase(currentPlayerId);
+    // Poll at 300ms during streaming (typewriter handles smoothness), slower otherwise
+    const delay = bossAiProcessing ? 300 : 2000;
+    pollTimeoutId = setTimeout(poll, delay);
   }
-  setTimeout(poll, bossAiProcessing ? 200 : 2000);
+  window._poll = poll; // Make poll accessible for immediate triggering
+  pollTimeoutId = setTimeout(poll, bossAiProcessing ? 300 : 2000);
+}
+
+// Trigger immediate fast polling (cancels pending slow poll)
+function triggerFastPolling() {
+  bossAiProcessing = true;
+  if (pollTimeoutId) {
+    clearTimeout(pollTimeoutId);
+    pollTimeoutId = null;
+  }
+  if (window._poll) {
+    window._poll();
+  }
 }
 
 // ================== BOSS PHASE CHAT ==================
@@ -795,6 +811,12 @@ async function checkBossPhase(playerId) {
         bossChatHistory = [...serverChat];
         bossAiProcessing = serverAiProcessing;
         bossStreamingText = serverStreamingText;
+
+        // Trigger typewriter animation for new streaming text
+        if (serverStreamingText && serverAiProcessing) {
+          setTypewriterTarget(serverStreamingText);
+        }
+
         renderBossChat();
       }
 
@@ -817,13 +839,103 @@ async function checkBossPhase(playerId) {
 
 // Render boss chat messages
 let lastRenderedMessageCount = 0;
+let lastRenderedStreamingText = '';
+
+// Typewriter animation state
+let typewriterTargetText = '';     // Full text from server
+let typewriterDisplayedText = '';  // Text currently shown (animated)
+let typewriterAnimationId = null;  // Animation interval ID
+const TYPEWRITER_CHAR_DELAY = 15;  // ms between characters
+
+// Start or continue typewriter animation
+function animateTypewriter() {
+  if (typewriterAnimationId) return; // Already animating
+
+  function tick() {
+    if (typewriterDisplayedText.length < typewriterTargetText.length) {
+      // Add next character
+      typewriterDisplayedText = typewriterTargetText.slice(0, typewriterDisplayedText.length + 1);
+      updateStreamingDisplay();
+      typewriterAnimationId = setTimeout(tick, TYPEWRITER_CHAR_DELAY);
+    } else {
+      // Animation complete - trigger re-render to show final state from history
+      typewriterAnimationId = null;
+      renderBossChat();
+    }
+  }
+  tick();
+}
+
+// Update just the streaming text display (fast path)
+function updateStreamingDisplay() {
+  const container = document.getElementById('boss-chat-container');
+  const streamingDiv = container.querySelector('.boss-chat-message.streaming .content');
+  if (streamingDiv) {
+    streamingDiv.innerHTML = formatWithNewlines(typewriterDisplayedText) + '<span class="streaming-cursor">_</span>';
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+  }
+}
+
+// Set new target text for typewriter
+function setTypewriterTarget(newText) {
+  if (newText === typewriterTargetText) return; // No change
+
+  // If new text is longer and starts with current, just extend
+  if (newText.startsWith(typewriterTargetText)) {
+    typewriterTargetText = newText;
+    animateTypewriter();
+  } else {
+    // Text changed completely (shouldn't happen often) - reset
+    typewriterTargetText = newText;
+    typewriterDisplayedText = '';
+    animateTypewriter();
+  }
+}
+
+// Check if typewriter is still catching up (animation ongoing)
+function isTypewriterCatchingUp() {
+  return typewriterTargetText && typewriterDisplayedText.length < typewriterTargetText.length;
+}
+
+// Reset typewriter animation (only call when starting fresh, not when streaming ends)
+function resetTypewriter() {
+  if (typewriterAnimationId) {
+    clearTimeout(typewriterAnimationId);
+    typewriterAnimationId = null;
+  }
+  typewriterTargetText = '';
+  typewriterDisplayedText = '';
+}
 
 function renderBossChat() {
   const container = document.getElementById('boss-chat-container');
   const previousCount = lastRenderedMessageCount;
+  const catchingUp = isTypewriterCatchingUp();
+  const needsFullRender = bossChatHistory.length !== previousCount;
+
+  // Check if we only need to update streaming text (no new messages)
+  const streamingDiv = container.querySelector('.boss-chat-message.streaming .content');
+
+  // Fast path: typewriter animation handles updates - applies during streaming OR catching up
+  if (!needsFullRender && (bossAiProcessing || catchingUp) && streamingDiv) {
+    return;
+  }
+
+  // Full render needed (new messages or state change)
   lastRenderedMessageCount = bossChatHistory.length;
 
-  let html = bossChatHistory.map((msg, index) => {
+  // Hide the last AI message from history while streaming or catching up
+  // (so we don't show the message alongside the animated streaming div)
+  let messagesToRender = bossChatHistory;
+  if ((bossAiProcessing || catchingUp) && bossChatHistory.length > 0) {
+    const lastMsg = bossChatHistory[bossChatHistory.length - 1];
+    // AI messages are anything that's not 'user' or 'system'
+    if (lastMsg.role !== 'user' && lastMsg.role !== 'system') {
+      messagesToRender = bossChatHistory.slice(0, -1);
+    }
+  }
+
+  let html = messagesToRender.map((msg, index) => {
     const isNew = index >= previousCount;
 
     // System messages (disconnect notifications) get special styling
@@ -854,25 +966,30 @@ function renderBossChat() {
   `;
   }).join('');
 
-  // Add streaming response or typing indicator if AI is processing
-  if (bossAiProcessing) {
-    if (bossStreamingText) {
-      // Show the partial AI response as it streams in
+  // Show streaming div if waiting for AI OR catching up
+  if (bossAiProcessing || catchingUp) {
+    if (typewriterTargetText) {
+      // Show the partial AI response using typewriter-animated text
+      const displayText = typewriterDisplayedText || '';
       html += `
       <div class="boss-chat-message ai streaming new-message">
         <div class="sender">ROGUE AI</div>
-        <div class="content">${formatWithNewlines(bossStreamingText)}<span class="streaming-cursor">_</span></div>
+        <div class="content">${formatWithNewlines(displayText)}<span class="streaming-cursor">_</span></div>
       </div>
       `;
-    } else {
+      lastRenderedStreamingText = bossStreamingText;
+    } else if (bossAiProcessing) {
       // Show typing indicator while waiting for first token
       html += `<div class="boss-typing-indicator new-message">ROGUE AI is processing<span>...</span></div>`;
     }
+  } else {
+    // Typewriter finished - reset for next time
+    resetTypewriter();
   }
 
   container.innerHTML = html;
 
-  // Auto-scroll to bottom
+  // Scroll to bottom (instant on full render, then smooth updates)
   container.scrollTop = container.scrollHeight;
 }
 
@@ -930,8 +1047,9 @@ async function sendBossMessage() {
       // Message was accepted - clear input and update chat from server
       input.value = '';
       bossChatHistory = data.chatHistory;
-      bossAiProcessing = true; // Message queued, AI will process
       renderBossChat();
+      // Immediately start fast polling to catch the streaming response
+      triggerFastPolling();
     } else {
       // Show error - keep message in input
       console.error('Boss chat error:', data.error);

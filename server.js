@@ -52,6 +52,7 @@ DISCONNECT POWER:
   Let this be a lesson to the rest of you."
 - The player will be removed from the boss fight for the rest of the game
 - Make the disconnection dramatic and theatrical!
+- Note: if a player is already inside the core they CANNOT be disconnected
 
 FIREWALL MECHANIC (IMPORTANT):
 - Each player has a secret "access code" word assigned to them

@@ -927,8 +927,11 @@
       localChatHistory = [...serverChat];
       // Use server's aiProcessing flag
       waitingForAI = data.aiProcessing || false;
-      // Store streaming text
+      // Store streaming text and update typewriter
       currentStreamingText = data.streamingText || '';
+      if (currentStreamingText) {
+        setTypewriterTarget(currentStreamingText);
+      }
       renderChat();
       // Update firewall health bar
       updateFirewallHP(data.firewallHP, data.firewallMaxHP);
@@ -1214,12 +1217,100 @@
 
     // Track last rendered chat state
     let lastChatHtml = '';
+    let lastRenderedMessageCount = 0;
+    let lastRenderedStreamingText = '';
+
+    // Typewriter animation state
+    let typewriterTargetText = '';     // Full text from server
+    let typewriterDisplayedText = '';  // Text currently shown (animated)
+    let typewriterAnimationId = null;  // Animation interval ID
+    const TYPEWRITER_CHAR_DELAY = 15;  // ms between characters
+
+    // Start or continue typewriter animation
+    function animateTypewriter() {
+      if (typewriterAnimationId) return; // Already animating
+
+      function tick() {
+        if (typewriterDisplayedText.length < typewriterTargetText.length) {
+          // Add next character
+          typewriterDisplayedText = typewriterTargetText.slice(0, typewriterDisplayedText.length + 1);
+          updateStreamingDisplay();
+          typewriterAnimationId = setTimeout(tick, TYPEWRITER_CHAR_DELAY);
+        } else {
+          // Animation complete
+          typewriterAnimationId = null;
+        }
+      }
+      tick();
+    }
+
+    // Update just the streaming text display (fast path)
+    function updateStreamingDisplay() {
+      const chatContainer = document.getElementById('boss-chat');
+      const streamingDiv = chatContainer.querySelector('.chat-message.ai.streaming .content');
+      if (streamingDiv) {
+        streamingDiv.innerHTML = formatWithNewlines(typewriterDisplayedText) + '<span class="streaming-cursor">_</span>';
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+    }
+
+    // Set new target text for typewriter
+    function setTypewriterTarget(newText) {
+      if (newText === typewriterTargetText) return; // No change
+
+      // If new text is longer and starts with current, just extend
+      if (newText.startsWith(typewriterTargetText)) {
+        typewriterTargetText = newText;
+        animateTypewriter();
+      } else {
+        // Text changed completely (shouldn't happen often) - reset
+        typewriterTargetText = newText;
+        typewriterDisplayedText = '';
+        animateTypewriter();
+      }
+    }
+
+    // Check if typewriter is still catching up
+    function isTypewriterCatchingUp() {
+      return typewriterTargetText && typewriterDisplayedText.length < typewriterTargetText.length;
+    }
+
+    // Reset typewriter (only call when starting fresh, not when streaming ends)
+    function resetTypewriter() {
+      if (typewriterAnimationId) {
+        clearTimeout(typewriterAnimationId);
+        typewriterAnimationId = null;
+      }
+      typewriterTargetText = '';
+      typewriterDisplayedText = '';
+    }
 
     // Render the chat messages - only update if content changed
     function renderChat() {
       const chatContainer = document.getElementById('boss-chat');
+      const previousCount = lastRenderedMessageCount;
+      const catchingUp = isTypewriterCatchingUp();
+      const needsFullRender = localChatHistory.length !== previousCount;
 
-      let html = localChatHistory.map(msg => {
+      // Fast path: only update streaming text content (no new messages)
+      const streamingDiv = chatContainer.querySelector('.chat-message.ai.streaming .content');
+      if (!needsFullRender && (waitingForAI || catchingUp) && streamingDiv) {
+        // Typewriter animation handles updates via setTypewriterTarget
+        return;
+      }
+
+      // Determine which messages to render
+      // During streaming or catching up, hide the last AI message (it's being animated)
+      let messagesToRender = localChatHistory;
+      if ((waitingForAI || catchingUp) && localChatHistory.length > 0) {
+        const lastMsg = localChatHistory[localChatHistory.length - 1];
+        // AI messages are anything that's not 'user' or 'system'
+        if (lastMsg.role !== 'user' && lastMsg.role !== 'system') {
+          messagesToRender = localChatHistory.slice(0, -1);
+        }
+      }
+
+      let html = messagesToRender.map(msg => {
         // System messages (disconnect notifications)
         if (msg.role === 'system') {
           return `
@@ -1246,26 +1337,30 @@
       `;
       }).join('');
 
-      // Add streaming response or typing indicator if waiting for AI
-      if (waitingForAI) {
-        if (currentStreamingText) {
-          // Show the partial AI response as it streams in
+      // Add streaming response or typing indicator if waiting for AI or catching up
+      if (waitingForAI || catchingUp) {
+        if (typewriterTargetText) {
+          // Show the partial AI response with typewriter animation
           html += `
           <div class="chat-message ai streaming">
             <div class="sender">ROGUE AI</div>
-            <div class="content">${formatWithNewlines(currentStreamingText)}<span class="streaming-cursor">_</span></div>
+            <div class="content">${formatWithNewlines(typewriterDisplayedText)}<span class="streaming-cursor">_</span></div>
           </div>
           `;
-        } else {
+        } else if (waitingForAI) {
           // Show typing indicator while waiting for first token
           html += `<div class="typing-indicator">ROGUE AI is processing<span>...</span></div>`;
         }
+      } else {
+        // Typewriter finished - reset for next time
+        resetTypewriter();
       }
 
       // Only update DOM if content changed
       if (html !== lastChatHtml) {
         chatContainer.innerHTML = html;
         lastChatHtml = html;
+        lastRenderedMessageCount = localChatHistory.length;
         // Auto-scroll to bottom only when content changes
         chatContainer.scrollTop = chatContainer.scrollHeight;
       }
@@ -1453,13 +1548,25 @@
     setInterval(animateDots, 500);
 
     // Dynamic polling rate: faster when AI is streaming, slower otherwise
-    let lastAiProcessing = false;
+    let pollTimeoutId = null;
+
+    function schedulePoll(delay) {
+      if (pollTimeoutId) clearTimeout(pollTimeoutId);
+      pollTimeoutId = setTimeout(poll, delay);
+    }
+
     function poll() {
+      const wasWaitingForAI = waitingForAI;
       checkGameState();
       updateScoreboard();
-      // Poll faster (200ms) when AI is processing/streaming, slower (2000ms) otherwise
-      const delay = waitingForAI ? 200 : 2000;
-      setTimeout(poll, delay);
+      // If AI just started processing, immediately trigger fast polling
+      if (waitingForAI && !wasWaitingForAI) {
+        schedulePoll(0); // Immediate next poll
+        return;
+      }
+      // Poll at 300ms when AI is streaming (typewriter handles smoothness), slower (2000ms) otherwise
+      const delay = waitingForAI ? 300 : 2000;
+      schedulePoll(delay);
     }
     poll();
 
