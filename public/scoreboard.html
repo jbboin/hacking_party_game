@@ -1156,12 +1156,22 @@
       // Calculate strength (inverse of health: 0 at full health, 1 at 0 health)
       const strength = 1 - normHealth;
 
-      // Shake: 40% probability (always), strength = 1 - normHealth
-      glitchConfig.effects.shake.chance = 0.4;
+      // At full health, disable all glitch effects
+      if (normHealth >= 1) {
+        glitchConfig.enabled = false;
+        stopGlitchLoop();
+        flashConfig.enabled = false;
+        stopFlashLoop();
+        return;
+      }
+
+      // Scale chances based on damage level (no effects at full health)
+      // Shake: up to 40% at 0 health
+      glitchConfig.effects.shake.chance = 0.4 * strength;
       glitchConfig.effects.shake.strength = strength;
 
-      // Overlay: 70% probability (always), strength = 1 - normHealth
-      glitchConfig.effects.overlay.chance = 0.7;
+      // Overlay: up to 70% at 0 health
+      glitchConfig.effects.overlay.chance = 0.7 * strength;
       glitchConfig.effects.overlay.strength = strength;
 
       // Random tick interval: 2s at full health, 1s at 0 health, linear between
@@ -1170,7 +1180,7 @@
       glitchConfig.minInterval = minInterval;
       glitchConfig.maxInterval = 2 * minInterval;
 
-      // Always run the glitch loop (effects happen but strength determines visibility)
+      // Enable glitch loop when damaged
       glitchConfig.enabled = true;
       startGlitchLoop();
 
