@@ -504,9 +504,9 @@ async function fetchPlayerData(playerId) {
 
     const data = await response.json();
 
-    // If boss phase is active, skip updating mission/hack UI (boss phase handles visibility)
-    if (bossPhaseActive) {
-      // Only update score during boss phase
+    // If boss phase or core phase is active, skip updating mission/hack UI (they handle visibility)
+    if (bossPhaseActive || corePhaseActive) {
+      // Only update score during boss/core phase
       document.getElementById('player-score').textContent = data.score || 0;
       return;
     }
@@ -732,6 +732,18 @@ let playerTeam = localStorage.getItem('team');
 let bossPlayerInfo = []; // Player info for chat highlighting
 let bossAccessCodes = []; // Access codes for AI highlighting
 
+// ================== CORE PHASE CHAT ==================
+
+let corePhaseActive = false;
+let coreChatHistory = [];
+let coreAiProcessing = false;
+let coreAnimatedMessageCount = 0;
+let coreCurrentlyAnimatingIndex = -1;
+let coreIsFirstLoad = true;
+let coreTypewriterTargetText = '';
+let coreTypewriterDisplayedText = '';
+let coreTypewriterAnimationId = null;
+
 // Check boss phase status
 async function checkBossPhase(playerId) {
   try {
@@ -739,10 +751,40 @@ async function checkBossPhase(playerId) {
     const data = await response.json();
 
     const bossBox = document.getElementById('boss-phase-box');
+    const coreBox = document.getElementById('core-phase-box');
     const inputContainer = document.getElementById('boss-input-container');
     const notWinningMsg = document.getElementById('boss-not-winning');
     const disconnectedBox = document.getElementById('disconnected-box');
     const savedBox = document.getElementById('saved-box');
+
+    // Handle core phase (separate from boss phase)
+    if (data.corePhase) {
+      corePhaseActive = true;
+      bossPhaseActive = false;
+      playerTeam = localStorage.getItem('team');
+
+      // Hide boss phase UI, show core phase UI
+      bossBox.classList.add('hidden');
+      coreBox.classList.remove('hidden');
+      disconnectedBox.classList.add('hidden');
+      savedBox.classList.add('hidden');
+
+      // Hide other elements
+      document.getElementById('mission-box')?.classList.add('hidden');
+      document.getElementById('hack-box')?.classList.add('hidden');
+      document.getElementById('waiting-box')?.classList.add('hidden');
+      document.getElementById('verifications-box')?.classList.add('hidden');
+      document.getElementById('access-code-box')?.classList.add('hidden');
+      document.getElementById('destruction-box')?.classList.add('hidden');
+
+      // Update core chat
+      updateCoreChat(data);
+      return;
+    }
+
+    // Hide core phase box if not in core phase
+    coreBox?.classList.add('hidden');
+    corePhaseActive = false;
 
     if (data.bossPhase) {
       bossPhaseActive = true;
@@ -786,8 +828,8 @@ async function checkBossPhase(playerId) {
         document.getElementById('waiting-box')?.classList.add('hidden');
         document.getElementById('verifications-box')?.classList.add('hidden');
         document.getElementById('access-code-box')?.classList.add('hidden');
-      } else if (playerSaved && !data.corePhase) {
-        // Player saved but not yet in core phase - show saved overlay, hide input
+      } else if (playerSaved) {
+        // Player saved - show saved overlay, hide input (waiting for core phase)
         savedBox.classList.remove('hidden');
         bossBox.classList.remove('hidden');
         inputContainer.classList.add('hidden');
@@ -798,20 +840,8 @@ async function checkBossPhase(playerId) {
         document.getElementById('hack-box')?.classList.add('hidden');
         document.getElementById('waiting-box')?.classList.add('hidden');
         document.getElementById('verifications-box')?.classList.add('hidden');
-      } else if (playerSaved && data.corePhase) {
-        // Player saved and in core phase - show chat interface again!
-        // (Destruction password is entered on the scoreboard page)
-        bossBox.classList.remove('hidden');
-        inputContainer.classList.remove('hidden');
-        notWinningMsg.classList.add('hidden');
-
-        // Hide other elements during destruction phase
-        document.getElementById('mission-box')?.classList.add('hidden');
-        document.getElementById('hack-box')?.classList.add('hidden');
-        document.getElementById('waiting-box')?.classList.add('hidden');
-        document.getElementById('verifications-box')?.classList.add('hidden');
       } else if (isWinningTeam) {
-        // Winning team (not disconnected, either not saved or firewall down): Show boss phase chat
+        // Winning team (not disconnected, not saved): Show boss phase chat
         bossBox.classList.remove('hidden');
         inputContainer.classList.remove('hidden');
         notWinningMsg.classList.add('hidden');
@@ -1233,3 +1263,234 @@ async function submitDestructionPassword() {
 }
 
 window.submitDestructionPassword = submitDestructionPassword;
+
+// ================== CORE PHASE CHAT ==================
+
+const CORE_TYPEWRITER_DELAY = 20;
+
+// Update core chat from server data
+function updateCoreChat(data) {
+  const serverChat = data.coreChatHistory || [];
+  coreChatHistory = [...serverChat];
+  coreAiProcessing = data.coreAiProcessing || false;
+
+  // On first load, skip animations
+  if (coreIsFirstLoad && serverChat.length > 0) {
+    coreIsFirstLoad = false;
+    coreAnimatedMessageCount = coreChatHistory.length;
+    renderCoreChat();
+    return;
+  }
+
+  // Check if we need to animate a new message
+  if (coreCurrentlyAnimatingIndex === -1) {
+    // Include non-AI messages immediately
+    while (coreAnimatedMessageCount < coreChatHistory.length &&
+           coreChatHistory[coreAnimatedMessageCount].role !== 'ai') {
+      coreAnimatedMessageCount++;
+    }
+
+    // Check for AI message to animate
+    if (coreAnimatedMessageCount < coreChatHistory.length &&
+        coreChatHistory[coreAnimatedMessageCount].role === 'ai') {
+      coreCurrentlyAnimatingIndex = coreAnimatedMessageCount;
+      renderCoreChat();
+      setCoreTypewriterTarget(coreChatHistory[coreAnimatedMessageCount].content);
+      return;
+    }
+  }
+
+  renderCoreChat();
+}
+
+// Core typewriter animation
+function animateCoreTypewriter() {
+  if (coreTypewriterAnimationId) return;
+
+  function tick() {
+    if (coreTypewriterDisplayedText.length < coreTypewriterTargetText.length) {
+      coreTypewriterDisplayedText = coreTypewriterTargetText.slice(0, coreTypewriterDisplayedText.length + 1);
+      updateCoreStreamingDisplay();
+      coreTypewriterAnimationId = setTimeout(tick, CORE_TYPEWRITER_DELAY);
+    } else {
+      coreTypewriterAnimationId = null;
+
+      if (coreCurrentlyAnimatingIndex >= 0) {
+        coreAnimatedMessageCount = coreCurrentlyAnimatingIndex + 1;
+        coreCurrentlyAnimatingIndex = -1;
+        resetCoreTypewriter();
+
+        // Include following non-AI messages
+        while (coreAnimatedMessageCount < coreChatHistory.length &&
+               coreChatHistory[coreAnimatedMessageCount].role !== 'ai') {
+          coreAnimatedMessageCount++;
+        }
+
+        // Check for next AI message
+        if (coreAnimatedMessageCount < coreChatHistory.length &&
+            coreChatHistory[coreAnimatedMessageCount].role === 'ai') {
+          coreCurrentlyAnimatingIndex = coreAnimatedMessageCount;
+          renderCoreChat();
+          setCoreTypewriterTarget(coreChatHistory[coreAnimatedMessageCount].content);
+          return;
+        }
+      }
+
+      renderCoreChat();
+    }
+  }
+  tick();
+}
+
+function updateCoreStreamingDisplay() {
+  const container = document.getElementById('core-chat-container');
+  const streamingDiv = container?.querySelector('.core-chat-message.streaming .content');
+  if (streamingDiv) {
+    streamingDiv.innerHTML = escapeHtml(coreTypewriterDisplayedText).replace(/\n/g, '<br>') + '<span class="streaming-cursor">_</span>';
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+function setCoreTypewriterTarget(newText) {
+  if (newText === coreTypewriterTargetText) return;
+
+  if (newText.startsWith(coreTypewriterTargetText)) {
+    coreTypewriterTargetText = newText;
+    animateCoreTypewriter();
+  } else {
+    coreTypewriterTargetText = newText;
+    coreTypewriterDisplayedText = '';
+    animateCoreTypewriter();
+  }
+}
+
+function isCoreTypewriterCatchingUp() {
+  return coreTypewriterTargetText && coreTypewriterDisplayedText.length < coreTypewriterTargetText.length;
+}
+
+function resetCoreTypewriter() {
+  if (coreTypewriterAnimationId) {
+    clearTimeout(coreTypewriterAnimationId);
+    coreTypewriterAnimationId = null;
+  }
+  coreTypewriterTargetText = '';
+  coreTypewriterDisplayedText = '';
+}
+
+// Track last rendered core chat HTML to avoid unnecessary re-renders
+let lastCoreChatHtml = '';
+
+// Render core chat messages
+function renderCoreChat() {
+  const container = document.getElementById('core-chat-container');
+  if (!container) return;
+
+  const catchingUp = isCoreTypewriterCatchingUp();
+  const streamingDiv = container.querySelector('.core-chat-message.streaming .content');
+  if (catchingUp && streamingDiv) {
+    return; // Typewriter handles updates
+  }
+
+  const showUpTo = coreCurrentlyAnimatingIndex >= 0 ? coreCurrentlyAnimatingIndex : coreAnimatedMessageCount;
+
+  let html = '';
+  for (let i = 0; i < showUpTo; i++) {
+    const msg = coreChatHistory[i];
+    if (msg.role === 'system') {
+      html += `
+      <div class="core-chat-message system">
+        <div class="system-content">${escapeHtml(msg.content)}</div>
+      </div>
+    `;
+    } else if (msg.role === 'user') {
+      html += `
+      <div class="core-chat-message user">
+        <div class="sender">${escapeHtml(msg.senderName || 'HACKER')}</div>
+        <div class="content">${escapeHtml(msg.content).replace(/\n/g, '<br>')}</div>
+      </div>
+    `;
+    } else {
+      html += `
+      <div class="core-chat-message ai">
+        <div class="sender">Q.W.E.E.N.</div>
+        <div class="content">${escapeHtml(msg.content).replace(/\n/g, '<br>')}</div>
+      </div>
+    `;
+    }
+  }
+
+  // Animated AI message
+  if (coreCurrentlyAnimatingIndex >= 0) {
+    html += `
+    <div class="core-chat-message ai streaming">
+      <div class="sender">Q.W.E.E.N.</div>
+      <div class="content">${escapeHtml(coreTypewriterDisplayedText).replace(/\n/g, '<br>')}<span class="streaming-cursor">_</span></div>
+    </div>
+    `;
+  } else if (coreAiProcessing) {
+    html += `<div class="core-typing-indicator">Q.W.E.E.N. is processing<span>...</span></div>`;
+  }
+
+  // Only update DOM and scroll if content changed
+  if (html !== lastCoreChatHtml) {
+    container.innerHTML = html;
+    lastCoreChatHtml = html;
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+// Send message in core phase
+let coreSending = false;
+
+async function sendCoreMessage() {
+  const input = document.getElementById('core-message-input');
+  const message = input.value.trim();
+  const sendBtn = document.getElementById('core-send-btn');
+
+  if (!message || coreSending) return;
+
+  coreSending = true;
+  sendBtn.disabled = true;
+  sendBtn.innerHTML = '<span class="spinner"></span>';
+  input.disabled = true;
+
+  try {
+    const response = await fetch('/api/core/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      input.value = '';
+      // Trigger fast polling to catch the response
+      triggerFastPolling();
+    } else {
+      console.error('Core chat error:', data.error);
+    }
+  } catch (err) {
+    console.error('Failed to send core message:', err);
+  } finally {
+    coreSending = false;
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'SEND';
+    input.disabled = false;
+    input.focus();
+  }
+}
+
+window.sendCoreMessage = sendCoreMessage;
+
+// Handle Enter key on core input
+document.addEventListener('DOMContentLoaded', () => {
+  const coreInput = document.getElementById('core-message-input');
+  if (coreInput) {
+    coreInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendCoreMessage();
+      }
+    });
+  }
+});

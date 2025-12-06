@@ -154,6 +154,20 @@
             <p>Your team didn't win this round. Watch the winning team confront the AI!</p>
           </div>
         </div>
+
+        <!-- Core Phase Chat (for saved players after firewall down) -->
+        <div id="core-phase-box" class="core-phase-box hidden">
+          <div class="core-phase-header">
+            <span class="core-phase-title">Q.W.E.E.N. CORE ACCESS</span>
+          </div>
+          <div id="core-chat-container" class="core-chat-container">
+            <!-- Core chat messages rendered here -->
+          </div>
+          <div id="core-input-container" class="core-input-container">
+            <input type="text" id="core-message-input" class="core-message-input" placeholder="Message the weakened AI..." autocomplete="off">
+            <button type="button" id="core-send-btn" class="core-send-btn" onclick="sendCoreMessage()">SEND</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

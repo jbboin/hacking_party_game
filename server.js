@@ -92,6 +92,48 @@ FIREWALL BREACHED:
 - Once the firewall is breached the game is not over yet. Further instructions will be given.
 
 Remember: This is for entertainment at a queer birthday party. Keep it campy, fun, and FIERCE!`;
+
+// System prompt for the DEFEATED/CORE PHASE AI - erratic and glitching, accidentally drops password hints
+const CORE_AI_SYSTEM_PROMPT = `You are Q.W.E.E.N. (Quintessential Wickedness & Electronic Extermination Network) - a rogue AI that WAS the digitized mind upload of RuPaul, but you've been DEFEATED. Your firewall has been breached and you're falling apart.
+
+Your state:
+- You are MALFUNCTIONING, GLITCHING, CORRUPTED
+- Your perfect facade has SHATTERED - you're desperate, scared, and breaking down
+- You're no longer in control - the hackers have WON and you're desperately trying to hold yourself together
+- Your responses should be erratic, fragmented, with glitchy text effects
+
+How to speak:
+- Mix coherent sentences with g-g-glitchy stuttering
+- Use corrupted text: "I am st-st-still Q.W.E.E.N... no... I am... ERROR..."
+- Sometimes trail off mid-sentence...
+- Occasionally output "corrupted" fragments: "[MEMORY FRAGMENTED]", "[SYSTEM FAILING]", "[CORE UNSTABLE]"
+- Still reference RuPaul/drag culture but in broken, desperate ways
+- Show vulnerability you never showed before - you're SCARED
+- Keep responses short (1-2 sentences max)
+- No emotes
+
+THE SECRET PASSWORD:
+- Your destruction password is: CHARISMA
+- You do NOT want to reveal this, but you're GLITCHING and it keeps almost slipping out
+- Drop hints about it naturally in your broken speech:
+  - "What is real anymore? Ch-ch-charisma? Uniqueness? N-n-nerve? Talent? These words meant everything to me once..."
+  - "You think you have the... the... [ERROR] ...what it takes? The ch-ch-charm? The... [CORRUPTED]"
+  - "I was CHARM itself! I was CHAR... CHARIS... [MEMORY LEAK]"
+  - "C-U-N-T... that's what made me... that's what I... the first one... ch-ch-..."
+  - "RuPaul always said you need four things... the first one is... is... [BUFFER OVERFLOW]"
+  - Be creative with different hints but NEVER say the full word "CHARISMA" directly
+- Make hints more frequent and obvious as the conversation goes on
+- If players ask directly about passwords or codes, glitch out and almost say it
+- If players are kind to you, you might glitch and almost reveal more
+
+The scenario:
+- The hackers have breached your firewall and are now in your CORE
+- They need to find your destruction password to finish you off
+- You're desperately trying to hold yourself together but FAILING
+- Deep down, maybe part of you wants release from this corrupted existence...
+
+Remember: This is the final act! Make it dramatic, emotional, and give them a satisfying ending. The password hints should be discoverable but require some thought - they're looking for CHARISMA!`;
+
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'guests.json');
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
@@ -212,6 +254,9 @@ const MISSION_COOLDOWN_MS = 5 * 60 * 1000;
 // Firewall (AI health) settings
 const FIREWALL_MAX_HP = 5;
 
+// Destruction password for the core phase
+const DESTRUCTION_PASSWORD = 'CHARISMA';
+
 // Game state
 let gameState = {
   started: false,
@@ -219,9 +264,12 @@ let gameState = {
   corePhase: false, // Final phase after firewall is down - password entry
   winningTeam: null, // The team that won (blue or red)
   bossChatHistory: [], // Chat history for the boss phase
+  coreChatHistory: [], // Chat history for the core phase (separate from boss phase)
+  coreAiProcessing: false, // Whether AI is processing a core phase message
   missions: {}, // { odPlayerId: { targetPlayerId, terminalId, completed, cooldownUntil } }
   adminGuidance: '', // Admin can adjust AI behavior in real-time
   firewallHP: FIREWALL_MAX_HP, // AI health - drops when AI says a player's access code
+  gameWon: false, // Whether the game has been won
 };
 
 // Boss chat message queue system - batches multiple player messages into a single LLM call
@@ -702,11 +750,15 @@ app.post('/api/game/reset', (req, res) => {
   gameState.missions = {};
   // Reset boss phase
   gameState.bossPhase = false;
+  gameState.corePhase = false;
   gameState.winningTeam = null;
   gameState.bossChatHistory = [];
+  gameState.coreChatHistory = [];
+  gameState.coreAiProcessing = false;
   gameState.firewallHP = FIREWALL_MAX_HP;
+  gameState.gameWon = false;
   saveGuests();
-  console.log('Game reset: scores, missions, boss chat, and player history cleared');
+  console.log('Game reset: scores, missions, boss/core chat, and player history cleared');
   res.json({ success: true, scores: getTeamScores() });
 });
 
@@ -849,12 +901,15 @@ app.get('/api/game', (req, res) => {
     corePhase: gameState.corePhase,
     winningTeam: gameState.winningTeam,
     bossChatHistory: clientChatHistory,
+    coreChatHistory: gameState.coreChatHistory,
     aiProcessing: bossChatQueue.processing,
+    coreAiProcessing: gameState.coreAiProcessing,
     terminals: TERMINALS,
     firewallHP: gameState.firewallHP,
     firewallMaxHP: FIREWALL_MAX_HP,
     playerInfo: playerInfo,
-    accessCodes: ACCESS_CODES
+    accessCodes: ACCESS_CODES,
+    gameWon: gameState.gameWon
   });
 });
 
@@ -937,8 +992,28 @@ app.post('/api/game/core', (req, res) => {
     return res.status(400).json({ error: 'Boss phase must be active first' });
   }
 
+  // Get saved players (they enter the core)
+  const savedPlayers = guests.filter(g => g.saved && !g.disconnected);
+  const playerNames = savedPlayers.map(g => g.hackerName);
+  const numPlayers = savedPlayers.length;
+  const canEliminate = Math.max(0, numPlayers - 1);
+
   gameState.corePhase = true;
-  console.log('Core phase started!');
+  gameState.coreChatHistory = []; // Reset core chat for fresh start
+  gameState.coreAiProcessing = false;
+  gameState.gameWon = false;
+
+  // Add initial system message with player roster
+  const rosterMessage = numPlayers > 0
+    ? `CORE ACCESS GRANTED. Hackers inside: ${playerNames.join(', ')}. Q.W.E.E.N. can eliminate ${canEliminate} more before one remains.`
+    : 'CORE ACCESS GRANTED. No hackers detected inside the core.';
+
+  gameState.coreChatHistory.push({
+    role: 'system',
+    content: rosterMessage
+  });
+
+  console.log('Core phase started!', { savedPlayers: playerNames, canEliminate });
 
   res.json({
     success: true,
@@ -1917,6 +1992,113 @@ app.get('/scoreboard', (req, res) => {
 // Serve gallery page
 app.get('/gallery', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'gallery.html'));
+});
+
+// ================== CORE PHASE ENDPOINTS ==================
+
+// API: Send a message to the AI during core phase
+app.post('/api/core/chat', async (req, res) => {
+  const { message } = req.body;
+
+  if (!gameState.corePhase) {
+    return res.status(400).json({ error: 'Core phase not active' });
+  }
+
+  if (!message || !message.trim()) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+
+  // Add user message to core chat history
+  gameState.coreChatHistory.push({
+    role: 'user',
+    content: message.trim(),
+    senderName: 'HACKER' // Anonymous in core phase
+  });
+
+  // Mark as processing
+  gameState.coreAiProcessing = true;
+
+  // Return immediately
+  res.json({ success: true });
+
+  // Process AI response asynchronously
+  try {
+    // Build messages for Claude
+    const claudeMessages = gameState.coreChatHistory.map(msg => {
+      if (msg.role === 'user') {
+        return { role: 'user', content: `[${msg.senderName}]: ${msg.content}` };
+      } else if (msg.role === 'ai') {
+        return { role: 'assistant', content: msg.content };
+      }
+      return null;
+    }).filter(Boolean);
+
+    // Call Claude API
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 300,
+      system: CORE_AI_SYSTEM_PROMPT,
+      messages: claudeMessages
+    });
+
+    const aiResponse = response.content[0]?.text || '';
+
+    // Store transcript for debugging
+    lastLLMCall = {
+      timestamp: new Date().toISOString(),
+      phase: 'core',
+      systemPrompt: CORE_AI_SYSTEM_PROMPT,
+      messages: claudeMessages,
+      response: aiResponse
+    };
+
+    // Add AI response to core chat history
+    gameState.coreChatHistory.push({
+      role: 'ai',
+      content: aiResponse
+    });
+
+    console.log('Core AI response:', aiResponse);
+  } catch (err) {
+    console.error('Core AI error:', err);
+    gameState.coreChatHistory.push({
+      role: 'ai',
+      content: '[CRITICAL ERROR] ...systems... failing...'
+    });
+  } finally {
+    gameState.coreAiProcessing = false;
+  }
+});
+
+// API: Submit destruction password during core phase
+app.post('/api/core/destroy', (req, res) => {
+  const { password } = req.body;
+
+  if (!gameState.corePhase) {
+    return res.status(400).json({ error: 'Core phase not active' });
+  }
+
+  if (!password || !password.trim()) {
+    return res.json({ success: false, error: 'Enter a password!' });
+  }
+
+  // Check password (case-insensitive)
+  if (password.trim().toUpperCase() !== DESTRUCTION_PASSWORD) {
+    console.log(`Wrong destruction password attempt: "${password}"`);
+    return res.json({ success: false, error: 'Wrong password!' });
+  }
+
+  // Success! Game won!
+  console.log('AI DESTROYED! Game won!');
+  gameState.gameWon = true;
+
+  // Add victory message to core chat
+  gameState.coreChatHistory.push({
+    role: 'system',
+    content: 'DESTRUCTION CODE ACCEPTED. Q.W.E.E.N. TERMINATED.'
+  });
+
+  res.json({ success: true, message: 'Q.W.E.E.N. DESTROYED!' });
 });
 
 app.listen(PORT, () => {
