@@ -321,27 +321,37 @@ async function loadGuests() {
         const statusClass = guest.saved ? 'status-saved' : (guest.disconnected ? 'status-disconnected' : '');
         return `
           <div class="guest-card ${teamClass}">
-            <span class="guest-name">${escapeHtml(guest.hackerName)}</span>
-            ${statusText ? `<span class="player-status ${statusClass}">${statusText}</span>` : ''}
-            ${!guest.saved && !guest.disconnected ? `
-              <button class="btn-save" onclick="savePlayer(${guest.id})">SAVE</button>
-              <button class="btn-disconnect" onclick="disconnectPlayer(${guest.id})">DISCONNECT</button>
-            ` : ''}
-            <button class="btn-delete" onclick="deleteGuest(${guest.id})">X</button>
+            <div class="guest-info-col">
+              <span class="guest-name">${escapeHtml(guest.hackerName)}</span>
+              <span class="access-code">[${guest.accessCode || '???'}]</span>
+            </div>
+            <div class="guest-controls-col">
+              ${statusText ? `<span class="player-status ${statusClass}">${statusText}</span>` : ''}
+              ${!guest.saved && !guest.disconnected ? `
+                <button class="btn-save" onclick="savePlayer(${guest.id})">SAVE</button>
+                <button class="btn-disconnect" onclick="disconnectPlayer(${guest.id})">DISCONNECT</button>
+              ` : ''}
+              <button class="btn-delete" onclick="deleteGuest(${guest.id})">X</button>
+            </div>
           </div>
         `;
       } else {
         // Normal mode: show score controls and reroll
         return `
           <div class="guest-card ${teamClass}">
-            <span class="guest-name">${escapeHtml(guest.hackerName)}</span>
-            <div class="player-score-control">
-              <button onclick="addPlayerPoints(${guest.id}, -1)">-</button>
-              <span class="player-score ${teamTextClass}" id="player-score-${guest.id}">${guest.score || 0}</span>
-              <button onclick="addPlayerPoints(${guest.id}, 1)">+</button>
+            <div class="guest-info-col">
+              <span class="guest-name">${escapeHtml(guest.hackerName)}</span>
+              <span class="access-code">[${guest.accessCode || '???'}]</span>
             </div>
-            <button class="btn-reroll" onclick="rerollMission(${guest.id})">REROLL</button>
-            <button class="btn-delete" onclick="deleteGuest(${guest.id})">X</button>
+            <div class="guest-controls-col">
+              <div class="player-score-control">
+                <button onclick="addPlayerPoints(${guest.id}, -1)">-</button>
+                <span class="player-score ${teamTextClass}" id="player-score-${guest.id}">${guest.score || 0}</span>
+                <button onclick="addPlayerPoints(${guest.id}, 1)">+</button>
+              </div>
+              <button class="btn-reroll" onclick="rerollMission(${guest.id})">REROLL</button>
+              <button class="btn-delete" onclick="deleteGuest(${guest.id})">X</button>
+            </div>
           </div>
         `;
       }
