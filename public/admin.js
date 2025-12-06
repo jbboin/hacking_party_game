@@ -3,19 +3,19 @@ async function loadGameState() {
   try {
     const response = await fetch('/api/game');
     const data = await response.json();
-    updateGameUI(data.started, data.bossPhase);
+    updateGameUI(data.started, data.bossPhase, data.firewallHP);
   } catch (error) {
     console.error('Failed to load game state:', error);
   }
 }
 
 // Update game UI based on state
-function updateGameUI(isRunning, bossPhase = false) {
+function updateGameUI(isRunning, bossPhase = false, firewallHP = 5) {
   const statusEl = document.getElementById('game-status');
   const startBtn = document.getElementById('start-game-btn');
   const stopBtn = document.getElementById('stop-game-btn');
   const bossBtn = document.getElementById('boss-phase-btn');
-  const aiGuidanceBox = document.getElementById('ai-guidance-box');
+  const bossControlsBox = document.getElementById('boss-controls-box');
 
   if (bossPhase) {
     statusEl.textContent = 'GAME: BOSS PHASE';
@@ -23,21 +23,58 @@ function updateGameUI(isRunning, bossPhase = false) {
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     bossBtn.classList.add('hidden');
-    aiGuidanceBox.classList.remove('hidden');
+    bossControlsBox.classList.remove('hidden');
+    updateFirewallHPDisplay(firewallHP);
   } else if (isRunning) {
     statusEl.textContent = 'GAME: RUNNING';
     statusEl.className = 'game-status running';
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     bossBtn.classList.remove('hidden');
-    aiGuidanceBox.classList.add('hidden');
+    bossControlsBox.classList.add('hidden');
   } else {
     statusEl.textContent = 'GAME: STOPPED';
     statusEl.className = 'game-status stopped';
     startBtn.classList.remove('hidden');
     stopBtn.classList.add('hidden');
     bossBtn.classList.add('hidden');
-    aiGuidanceBox.classList.add('hidden');
+    bossControlsBox.classList.add('hidden');
+  }
+}
+
+// Update firewall HP display
+function updateFirewallHPDisplay(hp) {
+  const hpValueEl = document.getElementById('firewall-hp-value');
+  if (hpValueEl) hpValueEl.textContent = hp;
+
+  // Highlight the active HP button
+  for (let i = 1; i <= 5; i++) {
+    const btn = document.getElementById(`hp-btn-${i}`);
+    if (btn) {
+      if (i === hp) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    }
+  }
+}
+
+// Set firewall HP
+async function setFirewallHP(hp) {
+  try {
+    const response = await fetch('/api/boss/firewall', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hp })
+    });
+    const data = await response.json();
+    if (data.success) {
+      updateFirewallHPDisplay(hp);
+      console.log('Firewall HP set to:', hp);
+    }
+  } catch (error) {
+    console.error('Failed to set firewall HP:', error);
   }
 }
 

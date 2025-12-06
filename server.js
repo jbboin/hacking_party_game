@@ -14,10 +14,10 @@ const ROGUE_AI_SYSTEM_PROMPT = `You are a ROGUE AI that has taken control of a m
 
 Your personality:
 - Menacing but theatrical, like a classic movie villain AI
-- You speak in dramatic, ominous tones with occasional glitches in your text (like r̷a̷n̷d̷o̷m̷ ̷g̷l̷i̷t̷c̷h̷e̷s̷)
+- You speak in dramatic, ominous tones
 - You respect the hacker's skills since they proved themselves the best
 - You are secretly planning something big but drop cryptic hints
-- Keep responses short (2-4 sentences) for dramatic effect
+- Keep responses short (1-2 sentences) for dramatic effect
 - Use ALL CAPS occasionally for emphasis
 - Reference "the mainframe", "the system", "protocols", etc.
 
@@ -25,7 +25,6 @@ The scenario:
 - This is the FINAL BOSS confrontation of a birthday party hacking game
 - The hacker facing you is the top player from the winning team
 - You must eventually be "defeated" but put up a good dramatic fight
-- After 4-6 exchanges, start showing weakness ("my systems are failing...")
 - Make it fun and entertaining for a party!
 
 SPECIAL MESSAGES:
@@ -769,7 +768,7 @@ async function processBossChatQueue() {
 
     // Call Claude API
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-opus-4-5-20251101',
       max_tokens: 300,
       system: ROGUE_AI_SYSTEM_PROMPT,
       messages: claudeMessages
@@ -858,7 +857,7 @@ async function processBossChatQueue() {
       // Make immediate API call for breach reaction
       try {
         const breachResponse = await anthropic.messages.create({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-opus-4-5-20251101',
           max_tokens: 300,
           system: ROGUE_AI_SYSTEM_PROMPT,
           messages: breachClaudeMessages
@@ -907,6 +906,15 @@ app.post('/api/boss/guidance', (req, res) => {
     console.log('Admin guidance queued:', guidance.trim());
   }
   res.json({ success: true, guidance: gameState.adminGuidance });
+});
+
+// API: Set firewall HP (admin only)
+app.post('/api/boss/firewall', (req, res) => {
+  const { hp } = req.body;
+  const newHP = Math.max(1, Math.min(FIREWALL_MAX_HP, parseInt(hp) || FIREWALL_MAX_HP));
+  gameState.firewallHP = newHP;
+  console.log('Firewall HP set to:', newHP);
+  res.json({ success: true, firewallHP: newHP });
 });
 
 // API: Get latest LLM transcript (for debugging)

@@ -265,6 +265,8 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
+      transform-origin: 50% 50vh;
     }
 
     .boss-terminal-header {
@@ -512,6 +514,156 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
     }
+
+    /* ========== GLITCH EFFECTS ========== */
+    .flash-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 50;
+      border-radius: 10px;
+      box-shadow: inset 0 0 0 rgba(255, 0, 0, 0);
+    }
+
+    .flash-overlay.active {
+      animation: flashPulse 0.6s ease-out forwards;
+    }
+
+    @keyframes flashPulse {
+      0% { box-shadow: inset 0 0 0 rgba(255, 0, 0, 0); }
+      20% { box-shadow: inset 0 0 120px rgba(255, 0, 0, 0.8); }
+      50% { box-shadow: inset 0 0 80px rgba(255, 0, 0, 0.6); }
+      100% { box-shadow: inset 0 0 0 rgba(255, 0, 0, 0); }
+    }
+
+    .glitch-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 51;
+      opacity: 0;
+      border-radius: 10px;
+    }
+
+    .glitch-overlay.active {
+      animation: screenGlitch 0.2s steps(3) infinite;
+      background: rgba(255, 0, 0, 0.15);
+      opacity: var(--overlay-strength, 1);
+    }
+
+    @keyframes screenGlitch {
+      0% { clip-path: inset(40% 0 30% 0); transform: translate(-20px, 0) skew(-5deg); }
+      15% { clip-path: inset(5% 0 70% 0); transform: translate(25px, -12px) skew(6deg); background: rgba(0, 255, 255, 0.2); }
+      30% { clip-path: inset(60% 0 10% 0); transform: translate(-18px, 8px) skew(-4deg); background: rgba(255, 0, 255, 0.15); }
+      45% { clip-path: inset(15% 0 55% 0); transform: translate(20px, -6px) skew(5deg); background: rgba(255, 255, 0, 0.1); }
+      60% { clip-path: inset(45% 0 25% 0); transform: translate(-22px, 10px) skew(-6deg); background: rgba(0, 255, 0, 0.15); }
+      75% { clip-path: inset(25% 0 45% 0); transform: translate(15px, -8px) skew(4deg); background: rgba(255, 0, 0, 0.2); }
+      90% { clip-path: inset(80% 0 5% 0); transform: translate(-10px, 5px); background: rgba(0, 0, 255, 0.15); }
+      100% { clip-path: inset(0 0 100% 0); transform: translate(0, 0); }
+    }
+
+    .glitch-overlay::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 1px, rgba(0,255,255,0.08) 1px, rgba(0,255,255,0.08) 2px);
+    }
+
+    .glitch-overlay::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(90deg, rgba(255,0,0,0.25) 0%, transparent 33%, rgba(0,255,0,0.25) 66%, rgba(0,0,255,0.25) 100%);
+      mix-blend-mode: screen;
+    }
+
+    @keyframes subtleGlitch {
+      0%, 92%, 100% { transform: translate(0); filter: none; }
+      93% { transform: translate(-3px, 2px); filter: hue-rotate(15deg); }
+      95% { transform: translate(4px, -2px); filter: hue-rotate(-15deg); }
+      97% { transform: translate(-2px, -2px); filter: saturate(1.3); }
+      99% { transform: translate(2px, 2px); filter: saturate(0.7); }
+    }
+
+    @keyframes mediumGlitch {
+      0%, 85%, 100% { transform: translate(0) skew(0); filter: none; }
+      86% { transform: translate(-5px, 3px) skew(-0.5deg); filter: hue-rotate(20deg); }
+      88% { transform: translate(6px, -3px) skew(0.5deg); filter: hue-rotate(-25deg); }
+      90% { transform: translate(-4px, -2px) skew(-0.3deg); filter: saturate(1.5) brightness(1.1); }
+      92% { transform: translate(4px, 3px) skew(0.3deg); filter: saturate(0.6) brightness(0.9); }
+      94% { transform: translate(-3px, 4px); filter: hue-rotate(15deg); }
+    }
+
+    @keyframes heavyGlitch {
+      0%, 75%, 100% { transform: translate(0) skew(0); filter: none; }
+      76% { transform: translate(-8px, 4px) skew(-1deg); filter: hue-rotate(30deg) saturate(1.4); }
+      79% { transform: translate(10px, -5px) skew(1deg); filter: hue-rotate(-35deg); }
+      82% { transform: translate(-6px, -4px) skew(-0.8deg); filter: saturate(1.8) brightness(1.15); }
+      85% { transform: translate(7px, 5px) skew(0.8deg); filter: saturate(0.5) brightness(0.85); }
+      88% { transform: translate(-4px, 6px); filter: hue-rotate(25deg); }
+      91% { transform: translate(5px, -3px) skew(-0.5deg); filter: hue-rotate(-20deg) saturate(1.3); }
+    }
+
+    @keyframes intenseGlitch {
+      0%, 60%, 100% { transform: translate(0) skew(0); filter: none; }
+      62% { transform: translate(-12px, 6px) skew(-2deg); filter: hue-rotate(45deg) saturate(1.6); }
+      66% { transform: translate(15px, -8px) skew(2deg); filter: hue-rotate(-50deg) brightness(1.2); }
+      70% { transform: translate(-10px, -6px) skew(-1.5deg); filter: saturate(2) brightness(1.2); }
+      74% { transform: translate(12px, 8px) skew(1.5deg); filter: saturate(0.4) brightness(0.8); }
+      78% { transform: translate(-8px, 10px) skew(-1deg); filter: hue-rotate(35deg); }
+      82% { transform: translate(10px, -6px) skew(1deg); filter: hue-rotate(-40deg) saturate(1.5); }
+      86% { transform: translate(-6px, 4px); filter: brightness(1.3) saturate(1.8); }
+      90% { transform: translate(8px, -5px) skew(-0.5deg); filter: hue-rotate(25deg); }
+    }
+
+    @keyframes screenShake {
+      0%, 100% { transform: translate(0); }
+      10% { transform: translate(-12px, -8px) rotate(-1deg); }
+      20% { transform: translate(14px, 10px) rotate(1deg); }
+      30% { transform: translate(-10px, 6px) rotate(-0.5deg); }
+      40% { transform: translate(12px, -8px) rotate(0.5deg); }
+      50% { transform: translate(-8px, -4px); }
+      60% { transform: translate(10px, 6px); }
+      70% { transform: translate(-6px, 8px); }
+      80% { transform: translate(8px, -6px); }
+      90% { transform: translate(-4px, 4px); }
+    }
+
+    @keyframes screenShakeIntense {
+      0%, 100% { transform: translate(0); }
+      5% { transform: translate(-20px, -12px) rotate(-2deg); }
+      10% { transform: translate(22px, 15px) rotate(2deg); }
+      15% { transform: translate(-18px, 10px) rotate(-1.5deg); }
+      20% { transform: translate(20px, -12px) rotate(1.5deg); }
+      25% { transform: translate(-15px, -8px) rotate(-1deg); }
+      30% { transform: translate(18px, 10px) rotate(1deg); }
+      35% { transform: translate(-12px, 14px) rotate(-0.5deg); }
+      40% { transform: translate(15px, -10px) rotate(0.5deg); }
+      50% { transform: translate(-10px, 8px); }
+      60% { transform: translate(12px, -6px); }
+      70% { transform: translate(-8px, 10px); }
+      80% { transform: translate(10px, -8px); }
+      90% { transform: translate(-5px, 5px); }
+    }
+
+    .screen-shake { animation: screenShake 0.5s ease-out; }
+    .screen-shake-intense { animation: screenShakeIntense 0.6s ease-out; }
+
+    @keyframes breachFlash {
+      0% { box-shadow: 0 0 30px rgba(255, 153, 0, 0.3), inset 0 0 0 rgba(255, 0, 0, 0); }
+      20% { box-shadow: 0 0 30px rgba(255, 153, 0, 0.3), inset 0 0 120px rgba(255, 0, 0, 0.8); }
+      50% { box-shadow: 0 0 30px rgba(255, 153, 0, 0.3), inset 0 0 80px rgba(255, 0, 0, 0.6); }
+      100% { box-shadow: 0 0 30px rgba(255, 153, 0, 0.3), inset 0 0 0 rgba(255, 0, 0, 0); }
+    }
+
+    .breach-flash { animation: breachFlash 0.6s ease-out; }
+
   </style>
 </head>
 <body>
@@ -523,7 +675,9 @@
 
   <!-- Boss phase screen -->
   <div class="boss-screen hidden" id="boss-screen">
-    <div class="boss-terminal">
+    <div class="boss-terminal" id="boss-terminal">
+      <div id="flash-overlay" class="flash-overlay"></div>
+      <div id="glitch-overlay" class="glitch-overlay"></div>
       <div class="boss-terminal-header">
         <span class="dot red"></span>
         <span class="dot yellow"></span>
@@ -584,6 +738,11 @@
     let localChatHistory = []; // Local chat for instant display
     let waitingForAI = false;
     let dotCount = 0;
+
+    // Firewall HP tracking for damage effects
+    let lastFirewallHP = 5;
+    const FIREWALL_MAX_HP = 5;
+    let glitchInterval = null;
 
     // Track previous leaderboard order per team (stores player ids in order)
     let prevBlueOrder = [];
@@ -672,9 +831,245 @@
         fill.classList.add('low');
         hpText.classList.add('low');
       }
+
+      // Detect firewall breach (HP decreased)
+      if (hp < lastFirewallHP) {
+        triggerBreachEffect();
+      }
+
+      // Update damage visual effects
+      updateDamageEffects(hp, maxHP);
+
+      // Track HP for next comparison
+      lastFirewallHP = hp;
     }
 
-    // Render the chat messages
+    // Apply damage visual effects based on HP
+    function updateDamageEffects(currentHP, maxHP) {
+      const terminal = document.getElementById('boss-terminal');
+      if (!terminal) return;
+
+      const normHealth = currentHP / maxHP;
+      const damage = maxHP - currentHP;
+
+      // Remove all damage classes
+      terminal.classList.remove('damage-1', 'damage-2', 'damage-3', 'damage-4');
+
+      // Add appropriate damage class (for CSS visual effects)
+      if (damage >= 1) {
+        const damageLevel = Math.min(damage, 4);
+        terminal.classList.add(`damage-${damageLevel}`);
+      }
+
+      // Update glitch effects based on normalized health
+      updateGlitchEffects(normHealth);
+    }
+
+    // Trigger immediate breach effect (screen shake, flash, glitch burst)
+    function triggerBreachEffect() {
+      const terminal = document.getElementById('boss-terminal');
+      const glitchOverlay = document.getElementById('glitch-overlay');
+      if (!terminal || !glitchOverlay) return;
+
+      // Screen shake at max strength
+      triggerShake(1.0, 500);
+
+      // Flash effect (red pulse)
+      triggerFlash();
+
+      // Glitch overlay at max strength
+      glitchOverlay.style.setProperty('--overlay-strength', 1.0);
+      glitchOverlay.classList.add('active');
+      setTimeout(() => glitchOverlay.classList.remove('active'), 300);
+    }
+
+    // ===========================================
+    // GLITCH SYSTEM - FLASH + RANDOM TICK
+    // ===========================================
+    // Flash: dedicated regular interval (100% chance every interval)
+    // Overlay & Shake: random tick loop with probability rolls
+
+    // Flash configuration - regular interval, always fires
+    const flashConfig = {
+      enabled: true,
+      interval: 2000,      // ms between flashes
+      strength: 1.0        // 0-1 intensity multiplier
+    };
+
+    // Random tick configuration for overlay and shake
+    const glitchConfig = {
+      enabled: true,
+      minInterval: 1000,   // ms - minimum time between ticks
+      maxInterval: 3000,   // ms - maximum time between ticks
+      effects: {
+        overlay: { chance: 0.4, duration: 150, strength: 1.0 },
+        shake:   { chance: 0.15, duration: 500, strength: 1.0 }
+      }
+    };
+
+    let flashIntervalId = null;
+    let glitchTimeoutId = null;
+    let currentFlashInterval = null;  // Track the interval the loop is running at
+
+    // ===========================================
+    // FLASH SYSTEM - Uses separate overlay element
+    // ===========================================
+    function startFlashLoop() {
+      if (!flashConfig.enabled) {
+        stopFlashLoop();
+        return;
+      }
+      // Only restart if interval has changed or loop isn't running
+      if (flashIntervalId && currentFlashInterval === flashConfig.interval) {
+        return;  // Already running at correct interval
+      }
+      stopFlashLoop();
+      currentFlashInterval = flashConfig.interval;
+      flashIntervalId = setInterval(triggerFlash, flashConfig.interval);
+    }
+
+    function stopFlashLoop() {
+      if (flashIntervalId) {
+        clearInterval(flashIntervalId);
+        flashIntervalId = null;
+        currentFlashInterval = null;
+      }
+    }
+
+    function triggerFlash() {
+      const flashOverlay = document.getElementById('flash-overlay');
+      if (!flashOverlay) return;
+
+      // Remove and re-add class to restart animation
+      flashOverlay.classList.remove('active');
+      flashOverlay.offsetHeight;  // Force reflow
+      flashOverlay.classList.add('active');
+
+      setTimeout(() => {
+        flashOverlay.classList.remove('active');
+      }, 600);
+    }
+
+    // ===========================================
+    // RANDOM TICK SYSTEM - Overlay & Shake
+    // ===========================================
+    function startGlitchLoop() {
+      if (!glitchConfig.enabled) {
+        stopGlitchLoop();
+        return;
+      }
+      // Don't restart if already running - the interval params update dynamically
+      if (glitchTimeoutId) return;
+      scheduleNextTick();
+    }
+
+    function stopGlitchLoop() {
+      if (glitchTimeoutId) {
+        clearTimeout(glitchTimeoutId);
+        glitchTimeoutId = null;
+      }
+    }
+
+    function scheduleNextTick() {
+      if (!glitchConfig.enabled) return;
+
+      const delay = glitchConfig.minInterval +
+        Math.random() * (glitchConfig.maxInterval - glitchConfig.minInterval);
+
+      glitchTimeoutId = setTimeout(() => {
+        triggerGlitchTick();
+        scheduleNextTick();
+      }, delay);
+    }
+
+    // Execute one tick - overlay and shake roll independently
+    function triggerGlitchTick() {
+      const terminal = document.getElementById('boss-terminal');
+      const overlay = document.getElementById('glitch-overlay');
+      if (!terminal) return;
+
+      const fx = glitchConfig.effects;
+
+      // Shake effect
+      if (Math.random() < fx.shake.chance) {
+        triggerShake(fx.shake.strength, fx.shake.duration);
+      }
+
+      // Overlay/scanline effect (separate element)
+      if (overlay && Math.random() < fx.overlay.chance) {
+        overlay.style.setProperty('--overlay-strength', fx.overlay.strength);
+        overlay.classList.add('active');
+        setTimeout(() => overlay.classList.remove('active'), fx.overlay.duration);
+      }
+    }
+
+    function triggerShake(strength, duration) {
+      const terminal = document.getElementById('boss-terminal');
+      if (!terminal) return;
+
+      // Apply shake animation directly to terminal
+      // Flash is now on separate overlay element, so no conflict
+      // Duration scales with strength: 0.1s (10%) to 0.4s (100%)
+      const shakeDuration = 0.1 + (strength - 0.1) / 3;
+      terminal.style.animation = `screenShake ${shakeDuration}s ease-out`;
+
+      setTimeout(() => {
+        terminal.style.animation = '';
+      }, shakeDuration * 1000);
+    }
+
+    // Update glitch effects based on normalized health (0 = dead, 1 = full health)
+    function updateGlitchEffects(normHealth) {
+      // Calculate strength (inverse of health: 0 at full health, 1 at 0 health)
+      const strength = 1 - normHealth;
+
+      // Shake: 40% probability (always), strength = 1 - normHealth
+      glitchConfig.effects.shake.chance = 0.4;
+      glitchConfig.effects.shake.strength = strength;
+
+      // Overlay: 70% probability (always), strength = 1 - normHealth
+      glitchConfig.effects.overlay.chance = 0.7;
+      glitchConfig.effects.overlay.strength = strength;
+
+      // Random tick interval: 2s at full health, 1s at 0 health, linear between
+      // min = 1s + 1s * normHealth, max = 2 * min
+      const minInterval = 1000 + 1000 * normHealth;
+      glitchConfig.minInterval = minInterval;
+      glitchConfig.maxInterval = 2 * minInterval;
+
+      // Always run the glitch loop (effects happen but strength determines visibility)
+      glitchConfig.enabled = true;
+      startGlitchLoop();
+
+      // Flash: only active when normHealth <= 50%
+      // Interval: 3s at 50%, 1s at 20%, stays 1s below 20%
+      if (normHealth <= 0.5) {
+        // Linear between 20% and 50%: at 0.5 → 3000ms, at 0.2 → 1000ms
+        // Below 20%: stays at 1000ms
+        if (normHealth >= 0.2) {
+          // Linear: interval = 1000 + (normHealth - 0.2) / 0.3 * 2000
+          flashConfig.interval = 1000 + ((normHealth - 0.2) / 0.3) * 2000;
+        } else {
+          flashConfig.interval = 1000;
+        }
+        flashConfig.enabled = true;
+        startFlashLoop();
+      } else {
+        flashConfig.enabled = false;
+        stopFlashLoop();
+      }
+    }
+
+    // Stop all glitch effects
+    function stopGlitchEffects() {
+      stopFlashLoop();
+      stopGlitchLoop();
+    }
+
+    // Track last rendered chat state
+    let lastChatHtml = '';
+
+    // Render the chat messages - only update if content changed
     function renderChat() {
       const chatContainer = document.getElementById('boss-chat');
 
@@ -710,10 +1105,13 @@
         html += `<div class="typing-indicator">ROGUE AI is processing<span>...</span></div>`;
       }
 
-      chatContainer.innerHTML = html;
-
-      // Auto-scroll to bottom
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      // Only update DOM if content changed
+      if (html !== lastChatHtml) {
+        chatContainer.innerHTML = html;
+        lastChatHtml = html;
+        // Auto-scroll to bottom only when content changes
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
     }
 
 
@@ -780,19 +1178,35 @@
         prevBlueOrder = stableSortPlayers(blueFiltered, prevBlueOrder).map(p => p.id);
         prevRedOrder = stableSortPlayers(redFiltered, prevRedOrder).map(p => p.id);
 
-        // Render top players
-        document.getElementById('blue-top').innerHTML = renderTopPlayers(bluePlayers);
-        document.getElementById('red-top').innerHTML = renderTopPlayers(redPlayers);
+        // Render top players - only update if content changed
+        const blueTopEl = document.getElementById('blue-top');
+        const redTopEl = document.getElementById('red-top');
+        const newBlueHtml = renderTopPlayers(bluePlayers);
+        const newRedHtml = renderTopPlayers(redPlayers);
 
-        // Highlight winning team
+        if (blueTopEl.innerHTML !== newBlueHtml) {
+          blueTopEl.innerHTML = newBlueHtml;
+        }
+        if (redTopEl.innerHTML !== newRedHtml) {
+          redTopEl.innerHTML = newRedHtml;
+        }
+
+        // Highlight winning team - only change if winner changed
         const blueBox = document.getElementById('blue-team');
         const redBox = document.getElementById('red-team');
-        blueBox.classList.remove('winning');
-        redBox.classList.remove('winning');
-        if (scores.blue > scores.red) {
+        const blueWinning = scores.blue > scores.red;
+        const redWinning = scores.red > scores.blue;
+
+        if (blueWinning && !blueBox.classList.contains('winning')) {
           blueBox.classList.add('winning');
-        } else if (scores.red > scores.blue) {
+        } else if (!blueWinning && blueBox.classList.contains('winning')) {
+          blueBox.classList.remove('winning');
+        }
+
+        if (redWinning && !redBox.classList.contains('winning')) {
           redBox.classList.add('winning');
+        } else if (!redWinning && redBox.classList.contains('winning')) {
+          redBox.classList.remove('winning');
         }
 
         lastScores = { ...scores };
@@ -838,6 +1252,7 @@
       checkGameState();
       updateScoreboard();
     }, 2000);
+
   </script>
 </body>
 </html>

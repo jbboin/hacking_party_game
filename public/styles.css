@@ -462,7 +462,70 @@ input[type="text"]::placeholder {
   color: var(--red);
 }
 
-/* AI Guidance Box */
+/* Boss Phase Controls Box */
+.boss-controls-box {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #1a0a0a 0%, #0d0d0d 100%);
+  border: 1px solid var(--red);
+  border-radius: 8px;
+}
+
+.boss-controls-box .admin-subtitle {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: var(--red);
+}
+
+/* Firewall HP Control */
+.firewall-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.firewall-control label {
+  color: var(--green);
+  font-weight: bold;
+}
+
+.firewall-hp-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.firewall-hp-buttons button {
+  width: 36px;
+  height: 36px;
+  background: #1a1a1a;
+  border: 1px solid var(--gray);
+  color: var(--green);
+  font-family: inherit;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.firewall-hp-buttons button:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.firewall-hp-buttons button.active {
+  background: var(--red);
+  border-color: var(--red);
+  color: #000;
+}
+
+.firewall-hp-display {
+  color: var(--gray);
+  font-size: 0.85rem;
+}
+
+/* AI Guidance Box (legacy, keeping for compatibility) */
 .ai-guidance-box {
   margin-bottom: 1.5rem;
   padding: 1rem;
@@ -1794,5 +1857,335 @@ input[type="text"]::placeholder {
     font-size: 0.8rem;
     padding: 0 1rem;
   }
+}
+
+/* ================== FIREWALL CRACK & GLITCH EFFECTS ================== */
+
+/* Crack overlay container - covers the boss phase area */
+.crack-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+  overflow: hidden;
+}
+
+/* Individual crack lines using SVG-like CSS */
+.crack-overlay::before,
+.crack-overlay::after {
+  content: '';
+  position: absolute;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+/* Crack pattern 1 - top left */
+.crack-overlay::before {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(135deg, transparent 48%, rgba(255, 100, 100, 0.4) 49%, rgba(255, 100, 100, 0.4) 51%, transparent 52%),
+    linear-gradient(125deg, transparent 45%, rgba(255, 80, 80, 0.3) 46%, rgba(255, 80, 80, 0.3) 48%, transparent 49%),
+    linear-gradient(145deg, transparent 52%, rgba(255, 120, 120, 0.35) 53%, rgba(255, 120, 120, 0.35) 55%, transparent 56%);
+  background-size: 100% 100%;
+  background-position: -50% -30%;
+}
+
+/* Crack pattern 2 - bottom right */
+.crack-overlay::after {
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(-45deg, transparent 48%, rgba(255, 100, 100, 0.4) 49%, rgba(255, 100, 100, 0.4) 51%, transparent 52%),
+    linear-gradient(-55deg, transparent 44%, rgba(255, 80, 80, 0.3) 45%, rgba(255, 80, 80, 0.3) 47%, transparent 48%),
+    linear-gradient(-35deg, transparent 53%, rgba(255, 120, 120, 0.35) 54%, rgba(255, 120, 120, 0.35) 56%, transparent 57%);
+  background-size: 100% 100%;
+  background-position: 50% 30%;
+}
+
+/* Crack intensity levels based on damage */
+.crack-overlay.damage-1::before { opacity: 0.3; }
+.crack-overlay.damage-1::after { opacity: 0; }
+
+.crack-overlay.damage-2::before { opacity: 0.5; }
+.crack-overlay.damage-2::after { opacity: 0.3; }
+
+.crack-overlay.damage-3::before { opacity: 0.7; }
+.crack-overlay.damage-3::after { opacity: 0.5; }
+
+.crack-overlay.damage-4::before { opacity: 0.9; }
+.crack-overlay.damage-4::after { opacity: 0.7; }
+
+/* Extra crack lines for high damage */
+.crack-line {
+  position: absolute;
+  background: linear-gradient(90deg, transparent, rgba(255, 80, 80, 0.6), transparent);
+  height: 2px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.crack-line-1 {
+  top: 15%;
+  left: -10%;
+  width: 60%;
+  transform: rotate(25deg);
+}
+
+.crack-line-2 {
+  top: 35%;
+  right: -10%;
+  width: 50%;
+  transform: rotate(-15deg);
+}
+
+.crack-line-3 {
+  bottom: 25%;
+  left: 5%;
+  width: 70%;
+  transform: rotate(10deg);
+}
+
+.crack-line-4 {
+  bottom: 40%;
+  right: -5%;
+  width: 55%;
+  transform: rotate(-30deg);
+}
+
+.crack-overlay.damage-2 .crack-line-1 { opacity: 0.5; }
+.crack-overlay.damage-3 .crack-line-1,
+.crack-overlay.damage-3 .crack-line-2 { opacity: 0.7; }
+.crack-overlay.damage-4 .crack-line-1,
+.crack-overlay.damage-4 .crack-line-2,
+.crack-overlay.damage-4 .crack-line-3,
+.crack-overlay.damage-4 .crack-line-4 { opacity: 0.9; }
+
+/* Shatter effect on breach */
+@keyframes shatterPulse {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.crack-overlay.breach-flash {
+  animation: shatterPulse 0.8s ease-out;
+  background: radial-gradient(ellipse at center, rgba(255, 0, 0, 0.3) 0%, transparent 70%);
+}
+
+/* Glitch effect overlay */
+.glitch-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 51;
+  opacity: 0;
+}
+
+.glitch-overlay.active {
+  animation: screenGlitch 0.15s steps(2) infinite;
+}
+
+@keyframes screenGlitch {
+  0% {
+    opacity: 0;
+    clip-path: inset(40% 0 30% 0);
+    transform: translate(-2px, 0);
+  }
+  20% {
+    opacity: 0.8;
+    clip-path: inset(10% 0 60% 0);
+    transform: translate(2px, 0);
+  }
+  40% {
+    opacity: 0.6;
+    clip-path: inset(70% 0 5% 0);
+    transform: translate(-1px, 0);
+  }
+  60% {
+    opacity: 0.7;
+    clip-path: inset(20% 0 50% 0);
+    transform: translate(1px, 0);
+  }
+  80% {
+    opacity: 0.5;
+    clip-path: inset(55% 0 25% 0);
+    transform: translate(-2px, 0);
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+    transform: translate(0, 0);
+  }
+}
+
+/* Scanline effect during glitch */
+.glitch-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 1px,
+    rgba(0, 255, 255, 0.03) 1px,
+    rgba(0, 255, 255, 0.03) 2px
+  );
+}
+
+/* RGB split effect */
+.glitch-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.1) 0%,
+    transparent 33%,
+    rgba(0, 255, 0, 0.1) 66%,
+    rgba(0, 0, 255, 0.1) 100%
+  );
+  mix-blend-mode: screen;
+}
+
+/* Periodic glitch animations based on damage level */
+.boss-phase-box.damage-1,
+.boss-terminal.damage-1 {
+  animation: subtleGlitch 8s infinite;
+}
+
+.boss-phase-box.damage-2,
+.boss-terminal.damage-2 {
+  animation: subtleGlitch 5s infinite;
+}
+
+.boss-phase-box.damage-3,
+.boss-terminal.damage-3 {
+  animation: subtleGlitch 3s infinite;
+}
+
+.boss-phase-box.damage-4,
+.boss-terminal.damage-4 {
+  animation: intenseGlitch 2s infinite;
+}
+
+@keyframes subtleGlitch {
+  0%, 95%, 100% {
+    transform: translate(0);
+    filter: none;
+  }
+  96% {
+    transform: translate(-2px, 1px);
+    filter: hue-rotate(10deg);
+  }
+  97% {
+    transform: translate(2px, -1px);
+    filter: hue-rotate(-10deg);
+  }
+  98% {
+    transform: translate(-1px, -1px);
+    filter: saturate(1.2);
+  }
+  99% {
+    transform: translate(1px, 1px);
+    filter: saturate(0.8);
+  }
+}
+
+@keyframes intenseGlitch {
+  0%, 90%, 100% {
+    transform: translate(0) skew(0);
+    filter: none;
+  }
+  91% {
+    transform: translate(-3px, 2px) skew(-0.5deg);
+    filter: hue-rotate(20deg) saturate(1.3);
+  }
+  92% {
+    transform: translate(3px, -2px) skew(0.5deg);
+    filter: hue-rotate(-20deg);
+  }
+  93% {
+    transform: translate(-2px, -1px) skew(-0.3deg);
+    filter: saturate(1.5) brightness(1.1);
+  }
+  94% {
+    transform: translate(2px, 1px) skew(0.3deg);
+    filter: saturate(0.7) brightness(0.9);
+  }
+  95% {
+    transform: translate(-1px, 2px);
+    filter: hue-rotate(15deg);
+  }
+}
+
+/* Screen shake on breach */
+@keyframes screenShake {
+  0%, 100% { transform: translate(0); }
+  10% { transform: translate(-5px, -3px); }
+  20% { transform: translate(5px, 3px); }
+  30% { transform: translate(-4px, 2px); }
+  40% { transform: translate(4px, -2px); }
+  50% { transform: translate(-3px, -1px); }
+  60% { transform: translate(3px, 1px); }
+  70% { transform: translate(-2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  90% { transform: translate(-1px, 1px); }
+}
+
+.screen-shake {
+  animation: screenShake 0.5s ease-out;
+}
+
+/* Red flash on breach */
+@keyframes breachFlash {
+  0% {
+    box-shadow: inset 0 0 0 rgba(255, 0, 0, 0);
+  }
+  30% {
+    box-shadow: inset 0 0 60px rgba(255, 0, 0, 0.5);
+  }
+  100% {
+    box-shadow: inset 0 0 0 rgba(255, 0, 0, 0);
+  }
+}
+
+.breach-flash {
+  animation: breachFlash 0.6s ease-out;
+}
+
+/* Container for boss phase needs position relative for overlays */
+.boss-phase-box {
+  position: relative;
+}
+
+.boss-terminal {
+  position: relative;
 }
 

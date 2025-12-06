@@ -23,11 +23,26 @@
         <button id="boss-phase-btn" class="btn-game btn-boss hidden" onclick="startBossPhase()">ADVANCE TO BOSS PHASE</button>
       </div>
 
-      <!-- AI Guidance (shown during boss phase) -->
-      <div id="ai-guidance-box" class="ai-guidance-box hidden">
-        <h2 class="admin-subtitle">AI GUIDANCE</h2>
+      <!-- Boss Phase Controls (shown during boss phase) -->
+      <div id="boss-controls-box" class="boss-controls-box hidden">
+        <h2 class="admin-subtitle">BOSS PHASE CONTROLS</h2>
+
+        <!-- Firewall HP Control -->
+        <div class="firewall-control">
+          <label>FIREWALL HP:</label>
+          <div class="firewall-hp-buttons">
+            <button onclick="setFirewallHP(1)" id="hp-btn-1">1</button>
+            <button onclick="setFirewallHP(2)" id="hp-btn-2">2</button>
+            <button onclick="setFirewallHP(3)" id="hp-btn-3">3</button>
+            <button onclick="setFirewallHP(4)" id="hp-btn-4">4</button>
+            <button onclick="setFirewallHP(5)" id="hp-btn-5">5</button>
+          </div>
+          <span class="firewall-hp-display">Current: <span id="firewall-hp-value">5</span>/5</span>
+        </div>
+
+        <!-- AI Guidance -->
         <div class="ai-guidance-input-row">
-          <input type="text" id="ai-guidance-input" placeholder="e.g. Start showing weakness, be more dramatic..." autocomplete="off">
+          <input type="text" id="ai-guidance-input" placeholder="AI guidance: e.g. Start showing weakness..." autocomplete="off">
           <button type="button" onclick="sendAiGuidance()">SEND</button>
         </div>
       </div>
