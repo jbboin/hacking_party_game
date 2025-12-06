@@ -209,7 +209,8 @@ const bossChatQueue = {
 let lastLLMCall = null;
 
 // Process disconnect commands from AI responses
-// Returns array of chat messages to add (AI messages and system disconnect notifications)
+// Returns array of chat messages to add (AI messages only - system messages added during streaming)
+// Note: Disconnects are processed in real-time during streaming, this just handles the AI message splitting
 function processDisconnectCommands(aiResponse) {
   const messages = [];
   const disconnected = [];
@@ -217,7 +218,7 @@ function processDisconnectCommands(aiResponse) {
   // Match [DISCONNECT PlayerName] on its own line (case insensitive for command, exact for name)
   const disconnectRegex = /^\s*\[DISCONNECT\s+(.+?)\]\s*$/gim;
 
-  // Find all matches and their positions
+  // Find all matches and their positions (even for already-disconnected players)
   const matches = [];
   let match;
   while ((match = disconnectRegex.exec(aiResponse)) !== null) {
@@ -228,37 +229,45 @@ function processDisconnectCommands(aiResponse) {
       g.team === gameState.winningTeam
     );
 
-    if (player && !player.disconnected) {
+    if (player) {
+      const wasAlreadyDisconnected = player.disconnected;
       matches.push({
         fullMatch: match[0],
         playerName: player.hackerName, // Use actual player name (correct case)
         index: match.index,
-        length: match[0].length
+        length: match[0].length,
+        alreadyProcessed: wasAlreadyDisconnected // Track if already processed during streaming
       });
-      player.disconnected = true;
-      saveGuests();
-      disconnected.push(player.hackerName);
-      console.log(`ROGUE AI disconnected player: ${player.hackerName}`);
+
+      // Only disconnect if not already done during streaming AND not protected by firewall
+      // Saved players are protected while firewall is up
+      const canDisconnect = !wasAlreadyDisconnected && (!player.saved || gameState.firewallHP <= 0);
+      if (canDisconnect) {
+        player.disconnected = true;
+        saveGuests();
+        disconnected.push(player.hackerName);
+        console.log(`ROGUE AI disconnected player: ${player.hackerName}`);
+      }
     }
   }
 
-  // If no valid disconnects, return single AI message
+  // If no disconnect commands found, return single AI message
   if (matches.length === 0) {
     messages.push({ role: 'ai', content: aiResponse });
     return { messages, disconnected };
   }
 
   // Split the response around disconnect commands
+  // Keep [DISCONNECT ...] in AI message, NO system message (already added during streaming)
   let lastIndex = 0;
   for (const m of matches) {
-    // Add AI text before disconnect (if not empty)
-    const before = aiResponse.substring(lastIndex, m.index).trim();
-    if (before) {
-      messages.push({ role: 'ai', content: before });
+    // Add AI text up to and including the disconnect command
+    const beforeAndIncluding = aiResponse.substring(lastIndex, m.index + m.length).trim();
+    if (beforeAndIncluding) {
+      messages.push({ role: 'ai', content: beforeAndIncluding });
     }
 
-    // Add system disconnect message
-    messages.push({ role: 'system', content: `${m.playerName} was disconnected` });
+    // System message was already added during streaming - don't add duplicate
 
     lastIndex = m.index + m.length;
   }
@@ -398,7 +407,7 @@ async function triggerFirewallDownReaction() {
 
     // Call Claude API with streaming for defeat reaction
     const stream = anthropic.messages.stream({
-      model: 'claude-opus-4-5-20251101',
+      model: 'claude-haiku-4-5',
       max_tokens: 300,
       system: ROGUE_AI_SYSTEM_PROMPT,
       messages: claudeMessages
@@ -982,7 +991,7 @@ async function processBossChatQueue() {
 
       // Call Claude API with streaming
       const stream = anthropic.messages.stream({
-        model: 'claude-opus-4-5-20251101',
+        model: 'claude-haiku-4-5',
         max_tokens: 300,
         system: ROGUE_AI_SYSTEM_PROMPT,
         messages: claudeMessages
@@ -990,9 +999,60 @@ async function processBossChatQueue() {
 
       // Accumulate text as it streams in
       let aiResponse = '';
+      let streamingOffset = 0; // Track how much of aiResponse has been committed to chat history
+      const processedDisconnects = new Set(); // Track already processed disconnects
+
       stream.on('text', (text) => {
         aiResponse += text;
-        gameState.streamingText = aiResponse;
+        // Only show text after the last committed disconnect in streamingText
+        gameState.streamingText = aiResponse.substring(streamingOffset);
+
+        // Check for disconnect commands in real-time during streaming
+        const disconnectRegex = /^\s*\[DISCONNECT\s+(.+?)\]\s*$/gim;
+        let match;
+        while ((match = disconnectRegex.exec(aiResponse)) !== null) {
+          const playerName = match[1].trim();
+          const matchKey = `${match.index}-${playerName.toLowerCase()}`;
+
+          // Skip if already processed
+          if (processedDisconnects.has(matchKey)) continue;
+
+          // Find player by name (case-insensitive) on winning team
+          const player = guests.find(g =>
+            g.hackerName.toLowerCase() === playerName.toLowerCase() &&
+            g.team === gameState.winningTeam
+          );
+
+          // Can't disconnect saved players while firewall is up (they're protected inside the core)
+          const canDisconnect = player && !player.disconnected && (!player.saved || gameState.firewallHP <= 0);
+
+          if (canDisconnect) {
+            player.disconnected = true;
+            saveGuests();
+            processedDisconnects.add(matchKey);
+            console.log(`ROGUE AI disconnected player (streaming): ${player.hackerName}`);
+
+            // Add AI text up to and including [DISCONNECT...] to chat history
+            const endOfDisconnect = match.index + match[0].length;
+            const aiTextUpToDisconnect = aiResponse.substring(streamingOffset, endOfDisconnect).trim();
+            if (aiTextUpToDisconnect) {
+              gameState.bossChatHistory.push({
+                role: 'ai',
+                content: aiTextUpToDisconnect
+              });
+            }
+
+            // Add system message to chat history
+            gameState.bossChatHistory.push({
+              role: 'system',
+              content: `${player.hackerName} was disconnected`
+            });
+
+            // Update offset so streamingText only shows what comes after
+            streamingOffset = endOfDisconnect;
+            gameState.streamingText = aiResponse.substring(streamingOffset);
+          }
+        }
       });
 
       // Wait for the stream to complete
@@ -1015,7 +1075,9 @@ async function processBossChatQueue() {
     };
 
     // Process disconnect commands and split AI response into messages
-    const { messages: aiMessages, disconnected: disconnectedPlayers } = processDisconnectCommands(aiResponse);
+    // Only process text after streamingOffset (text before was already committed during streaming)
+    const remainingText = aiResponse.substring(streamingOffset).trim();
+    const { messages: aiMessages, disconnected: disconnectedPlayers } = processDisconnectCommands(remainingText);
 
     // Check for firewall breaches (AI said a player's access code)
     const breaches = checkFirewallBreach(aiResponse);
@@ -1083,7 +1145,7 @@ async function processBossChatQueue() {
       // Make immediate API call with streaming for breach reaction
       try {
         const breachStream = anthropic.messages.stream({
-          model: 'claude-opus-4-5-20251101',
+          model: 'claude-haiku-4-5',
           max_tokens: 300,
           system: ROGUE_AI_SYSTEM_PROMPT,
           messages: breachClaudeMessages
