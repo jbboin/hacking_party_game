@@ -2966,7 +2966,7 @@ input[type="text"]::placeholder {
 }
 
 .victory-glitch {
-  font-size: 4rem;
+  font-size: 5rem;
   font-weight: bold;
   color: #00ff00;
   text-shadow:
@@ -2974,8 +2974,16 @@ input[type="text"]::placeholder {
     0 0 20px #00ff00,
     0 0 40px #00ff00,
     0 0 80px #00ff00;
-  animation: victoryPulse 2s ease-in-out infinite, glitchText 0.3s infinite;
+  animation: victoryPulse 2s ease-in-out infinite;
   position: relative;
+}
+
+@keyframes victoryGlitch {
+  0%, 90%, 100% { transform: translate(0); }
+  92% { transform: translate(-2px, 1px); }
+  94% { transform: translate(2px, -1px); }
+  96% { transform: translate(-1px, 2px); }
+  98% { transform: translate(1px, -2px); }
 }
 
 @keyframes victoryPulse {
@@ -2995,7 +3003,7 @@ input[type="text"]::placeholder {
 }
 
 .victory-subtitle {
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   color: #ff00ff;
   margin-top: 1rem;
   text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
@@ -3010,8 +3018,8 @@ input[type="text"]::placeholder {
 }
 
 .victory-message {
-  font-size: 1rem;
-  color: #888;
+  font-size: 1.2rem;
+  color: #00ff00;
   margin-top: 2rem;
   animation: subtitleFade 3s ease-out forwards;
   animation-delay: 2s;
@@ -3026,8 +3034,9 @@ input[type="text"]::placeholder {
 }
 
 .credits-line {
-  font-size: 1.5rem;
-  color: #ff9900;
-  text-shadow: 0 0 20px rgba(255, 153, 0, 0.5);
+  font-size: 2rem;
+  font-weight: bold;
+  color: #00ff00;
+  text-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
 }
 
