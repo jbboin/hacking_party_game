@@ -759,7 +759,6 @@
       font-size: 0.75rem;
       opacity: 0.7;
       margin-bottom: 0.25rem;
-      text-transform: uppercase;
       letter-spacing: 0.05rem;
     }
 
@@ -791,7 +790,7 @@
       border: 1px dashed #ff00ff;
       border-radius: 8px;
       padding: 0.5rem 1rem;
-      color: #ff00ff;
+      color: #ff99ff;
       font-style: italic;
     }
 
@@ -809,7 +808,6 @@
       flex-direction: column;
       align-items: center;
       gap: 0.75rem;
-      min-height: 160px;
     }
 
     .core-password-label {
@@ -858,6 +856,10 @@
       border-color: #666;
     }
 
+    .core-password-input.error {
+      border-color: #ff4444;
+    }
+
     .core-submit-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -888,10 +890,12 @@
       padding: 0.5rem 1rem;
       border-radius: 5px;
       text-align: center;
+      display: inline-block;
+      align-self: center;
     }
 
     .core-password-message.hidden {
-      display: none;
+      visibility: hidden;
     }
 
     .core-password-message.error {
@@ -1382,8 +1386,8 @@
           <input type="text" id="core-password" class="core-password-input" placeholder="Enter password..." autocomplete="off">
           <button type="button" id="core-submit-btn" class="core-submit-btn" onclick="submitCorePassword()">DESTROY</button>
         </div>
-        <p id="core-password-message" class="core-password-message hidden"></p>
       </div>
+      <p id="core-password-message" class="core-password-message hidden">&nbsp;</p>
     </div>
   </div>
 
@@ -2608,8 +2612,10 @@
           messageEl.textContent = data.error || 'Wrong password!';
           messageEl.classList.remove('hidden', 'success');
           messageEl.classList.add('error');
+          passwordInput.classList.add('error');
           window.setTimeout(() => {
             messageEl.classList.add('hidden');
+            passwordInput.classList.remove('error');
             passwordInput.value = '';
             passwordSubmitting = false;
             submitBtn.disabled = false;
@@ -2620,8 +2626,10 @@
         messageEl.textContent = 'Connection error: ' + err.message;
         messageEl.classList.remove('hidden', 'success');
         messageEl.classList.add('error');
+        passwordInput.classList.add('error');
         window.setTimeout(() => {
           messageEl.classList.add('hidden');
+          passwordInput.classList.remove('error');
           passwordInput.value = '';
           passwordSubmitting = false;
           submitBtn.disabled = false;

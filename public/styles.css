@@ -2027,7 +2027,7 @@ input[type="text"]::placeholder {
 
 /* Core typing indicator */
 .core-typing-indicator {
-  color: #ff00ff;
+  color: #ff99ff;
   font-style: italic;
   padding: 0.5rem;
   align-self: flex-start;
