@@ -904,7 +904,7 @@ async function checkBossPhase(playerId) {
 let typewriterTargetText = '';     // Full text from server
 let typewriterDisplayedText = '';  // Text currently shown (animated)
 let typewriterAnimationId = null;  // Animation interval ID
-const TYPEWRITER_CHAR_DELAY = 15;  // ms between characters
+const TYPEWRITER_CHAR_DELAY = 20;  // ms between characters
 
 // Start or continue typewriter animation
 function animateTypewriter() {
@@ -951,26 +951,13 @@ function animateTypewriter() {
   tick();
 }
 
-// Check if user is scrolled near the bottom (within 100px)
-function isNearBottom(container) {
-  const threshold = 100;
-  return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
-}
-
 // Update just the streaming text display (fast path)
 function updateStreamingDisplay() {
   const container = document.getElementById('boss-chat-container');
   const streamingDiv = container.querySelector('.boss-chat-message.streaming .content');
   if (streamingDiv) {
-    const scrollPos = container.scrollTop;
-    const wasNearBottom = isNearBottom(container);
     streamingDiv.innerHTML = formatWithNewlines(typewriterDisplayedText, true) + '<span class="streaming-cursor">_</span>';
-    // Only auto-scroll if user was already at the bottom
-    if (wasNearBottom) {
-      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-    } else {
-      container.scrollTop = scrollPos;
-    }
+    container.scrollTop = container.scrollHeight;
   }
 }
 
@@ -1063,18 +1050,8 @@ function renderBossChat() {
     html += `<div class="boss-typing-indicator new-message">Q.W.E.E.N. is processing<span>...</span></div>`;
   }
 
-  // Save scroll position before modifying DOM
-  const scrollPos = container.scrollTop;
-  const wasNearBottom = isNearBottom(container);
-
   container.innerHTML = html;
-
-  // Restore scroll position, or scroll to bottom if user was already there
-  if (wasNearBottom) {
-    container.scrollTop = container.scrollHeight;
-  } else {
-    container.scrollTop = scrollPos;
-  }
+  container.scrollTop = container.scrollHeight;
 }
 
 // Track if currently sending a message

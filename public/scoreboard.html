@@ -1426,7 +1426,7 @@
     let typewriterTargetText = '';     // Full text from server
     let typewriterDisplayedText = '';  // Text currently shown (animated)
     let typewriterAnimationId = null;  // Animation interval ID
-    const TYPEWRITER_CHAR_DELAY = 15;  // ms between characters
+    const TYPEWRITER_CHAR_DELAY = 20;  // ms between characters
 
     // Start or continue typewriter animation
     function animateTypewriter() {
@@ -1473,25 +1473,13 @@
       tick();
     }
 
-    // Check if user is scrolled near the bottom (within 100px)
-    function isNearBottom(container) {
-      const threshold = 100;
-      return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
-    }
-
     // Update just the streaming text display (fast path)
     function updateStreamingDisplay() {
       const chatContainer = document.getElementById('boss-chat');
       const streamingDiv = chatContainer.querySelector('.chat-message.ai.streaming .content');
       if (streamingDiv) {
-        const scrollPos = chatContainer.scrollTop;
-        const wasNearBottom = isNearBottom(chatContainer);
         streamingDiv.innerHTML = formatWithNewlines(typewriterDisplayedText, true) + '<span class="streaming-cursor">_</span>';
-        if (wasNearBottom) {
-          chatContainer.scrollTop = chatContainer.scrollHeight;
-        } else {
-          chatContainer.scrollTop = scrollPos;
-        }
+        chatContainer.scrollTop = chatContainer.scrollHeight;
       }
     }
 
@@ -1586,19 +1574,9 @@
 
       // Only update DOM if content changed
       if (html !== lastChatHtml) {
-        // Save scroll position before modifying DOM
-        const scrollPos = chatContainer.scrollTop;
-        const wasNearBottom = isNearBottom(chatContainer);
-
         chatContainer.innerHTML = html;
         lastChatHtml = html;
-
-        // Restore scroll position, or scroll to bottom if user was already there
-        if (wasNearBottom) {
-          chatContainer.scrollTop = chatContainer.scrollHeight;
-        } else {
-          chatContainer.scrollTop = scrollPos;
-        }
+        chatContainer.scrollTop = chatContainer.scrollHeight;
       }
     }
 
