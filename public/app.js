@@ -218,6 +218,24 @@ function escapeRegex(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Format core phase messages - only highlight player names, not access codes
+function formatCoreMessage(text) {
+  let result = escapeHtml(text);
+
+  // Highlight player names in bold with team color (case-insensitive)
+  for (const player of corePlayerInfo) {
+    if (player.name) {
+      const colorClass = player.team === 'blue' ? 'player-name-blue' : 'player-name-red';
+      const escapedName = escapeHtml(player.name);
+      // Use word boundary to match whole names only, case-insensitive
+      const regex = new RegExp(`\\b${escapeRegex(escapedName)}\\b`, 'gi');
+      result = result.replace(regex, `<span class="player-name ${colorClass}">$&</span>`);
+    }
+  }
+
+  return result.replace(/\n/g, '<br>');
+}
+
 // Submit trivia answer
 async function submitTrivia() {
   const answerInput = document.getElementById('trivia-answer');
@@ -731,6 +749,7 @@ let isFirstLoad = true; // Skip animations on page load
 let playerTeam = localStorage.getItem('team');
 let bossPlayerInfo = []; // Player info for chat highlighting
 let bossAccessCodes = []; // Access codes for AI highlighting
+let corePlayerInfo = []; // Player info for core chat highlighting (names only, no access codes)
 
 // ================== CORE PHASE CHAT ==================
 
@@ -1303,6 +1322,9 @@ function updateCoreChat(data) {
   coreChatHistory = [...serverChat];
   coreAiProcessing = data.coreAiProcessing || false;
 
+  // Store player info for chat highlighting (names only, no access codes in core phase)
+  corePlayerInfo = data.playerInfo || [];
+
   // On first load, skip animations
   if (coreIsFirstLoad && serverChat.length > 0) {
     coreIsFirstLoad = false;
@@ -1375,7 +1397,7 @@ function updateCoreStreamingDisplay() {
   const container = document.getElementById('core-chat-container');
   const streamingDiv = container?.querySelector('.core-chat-message.streaming .content');
   if (streamingDiv) {
-    streamingDiv.innerHTML = escapeHtml(coreTypewriterDisplayedText).replace(/\n/g, '<br>') + '<span class="streaming-cursor">_</span>';
+    streamingDiv.innerHTML = formatCoreMessage(coreTypewriterDisplayedText) + '<span class="streaming-cursor">_</span>';
     container.scrollTop = container.scrollHeight;
   }
 }
@@ -1438,14 +1460,14 @@ function renderCoreChat() {
       html += `
       <div class="core-chat-message user">
         <div class="sender">${escapeHtml(msg.senderName || 'HACKER')}</div>
-        <div class="content">${escapeHtml(msg.content).replace(/\n/g, '<br>')}</div>
+        <div class="content">${formatCoreMessage(msg.content)}</div>
       </div>
     `;
     } else {
       html += `
       <div class="core-chat-message ai">
         <div class="sender">Q.W.E.E.N.</div>
-        <div class="content">${escapeHtml(msg.content).replace(/\n/g, '<br>')}</div>
+        <div class="content">${formatCoreMessage(msg.content)}</div>
       </div>
     `;
     }
@@ -1456,7 +1478,7 @@ function renderCoreChat() {
     html += `
     <div class="core-chat-message ai streaming">
       <div class="sender">Q.W.E.E.N.</div>
-      <div class="content">${escapeHtml(coreTypewriterDisplayedText).replace(/\n/g, '<br>')}<span class="streaming-cursor">_</span></div>
+      <div class="content">${formatCoreMessage(coreTypewriterDisplayedText)}<span class="streaming-cursor">_</span></div>
     </div>
     `;
   } else if (coreAiProcessing) {
