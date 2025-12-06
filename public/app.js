@@ -647,7 +647,7 @@ async function fetchPlayerData(playerId) {
 }
 
 // Start polling for player updates
-let pollingInterval = null;
+let pollingActive = false;
 
 function startPlayerPolling(playerId) {
   // Initial fetch
@@ -655,16 +655,21 @@ function startPlayerPolling(playerId) {
   fetchVerifications(playerId);
   checkBossPhase(playerId);
 
-  // Poll every 3 seconds
-  if (pollingInterval) clearInterval(pollingInterval);
-  pollingInterval = setInterval(() => {
+  // Dynamic polling: 200ms when AI is processing/streaming, 2000ms otherwise
+  pollingActive = true;
+  function poll() {
+    if (!pollingActive) return;
     fetchPlayerData(playerId);
     // Skip verifications during boss phase
     if (!bossPhaseActive) {
       fetchVerifications(playerId);
     }
     checkBossPhase(playerId);
-  }, 3000);
+    // Poll faster when AI is streaming, slower otherwise
+    const delay = bossAiProcessing ? 200 : 2000;
+    setTimeout(poll, delay);
+  }
+  setTimeout(poll, bossAiProcessing ? 200 : 2000);
 }
 
 // ================== BOSS PHASE CHAT ==================
@@ -673,6 +678,7 @@ let bossPhaseActive = false;
 let bossWinningTeam = null;
 let bossChatHistory = [];
 let bossAiProcessing = false;
+let bossStreamingText = ''; // Partial AI response as it streams
 let playerTeam = localStorage.getItem('team');
 
 // Check boss phase status
@@ -777,15 +783,18 @@ async function checkBossPhase(playerId) {
         document.getElementById('access-code-box')?.classList.add('hidden');
       }
 
-      // Update chat and AI processing state from server
+      // Update chat, AI processing state, and streaming text from server
       const serverChat = data.bossChatHistory || [];
       const serverAiProcessing = data.aiProcessing || false;
+      const serverStreamingText = data.streamingText || '';
 
-      // Re-render if chat changed or AI processing state changed
+      // Re-render if chat changed, AI processing state changed, or streaming text updated
       if (JSON.stringify(serverChat) !== JSON.stringify(bossChatHistory) ||
-          serverAiProcessing !== bossAiProcessing) {
+          serverAiProcessing !== bossAiProcessing ||
+          serverStreamingText !== bossStreamingText) {
         bossChatHistory = [...serverChat];
         bossAiProcessing = serverAiProcessing;
+        bossStreamingText = serverStreamingText;
         renderBossChat();
       }
 
@@ -845,9 +854,20 @@ function renderBossChat() {
   `;
   }).join('');
 
-  // Add typing indicator if AI is processing (inline with chat messages)
+  // Add streaming response or typing indicator if AI is processing
   if (bossAiProcessing) {
-    html += `<div class="boss-typing-indicator new-message">ROGUE AI is processing<span>...</span></div>`;
+    if (bossStreamingText) {
+      // Show the partial AI response as it streams in
+      html += `
+      <div class="boss-chat-message ai streaming new-message">
+        <div class="sender">ROGUE AI</div>
+        <div class="content">${formatWithNewlines(bossStreamingText)}<span class="streaming-cursor">_</span></div>
+      </div>
+      `;
+    } else {
+      // Show typing indicator while waiting for first token
+      html += `<div class="boss-typing-indicator new-message">ROGUE AI is processing<span>...</span></div>`;
+    }
   }
 
   container.innerHTML = html;

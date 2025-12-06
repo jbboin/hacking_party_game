@@ -181,7 +181,8 @@ let gameState = {
   bossChatHistory: [], // Chat history for the boss phase
   missions: {}, // { odPlayerId: { targetPlayerId, terminalId, completed, cooldownUntil } }
   adminGuidance: '', // Admin can adjust AI behavior in real-time
-  firewallHP: FIREWALL_MAX_HP // AI health - drops when AI says a player's access code
+  firewallHP: FIREWALL_MAX_HP, // AI health - drops when AI says a player's access code
+  streamingText: '' // Partial AI response while streaming
 };
 
 // Boss chat message queue system - batches multiple player messages into a single LLM call
@@ -377,15 +378,26 @@ async function triggerFirewallDownReaction() {
       return;
     }
 
-    // Call Claude API for defeat reaction
-    const response = await anthropic.messages.create({
+    // Call Claude API with streaming for defeat reaction
+    const stream = anthropic.messages.stream({
       model: 'claude-opus-4-5-20251101',
       max_tokens: 300,
       system: ROGUE_AI_SYSTEM_PROMPT,
       messages: claudeMessages
     });
 
-    const aiResponse = response.content[0].text;
+    // Accumulate text as it streams in
+    let aiResponse = '';
+    stream.on('text', (text) => {
+      aiResponse += text;
+      gameState.streamingText = aiResponse;
+    });
+
+    // Wait for the stream to complete
+    await stream.finalMessage();
+
+    // Clear streaming text
+    gameState.streamingText = '';
 
     // Process the response (may contain disconnects)
     const { messages: aiMessages } = processDisconnectCommands(aiResponse);
@@ -757,7 +769,8 @@ app.get('/api/game', (req, res) => {
     aiProcessing: bossChatQueue.processing,
     terminals: TERMINALS,
     firewallHP: gameState.firewallHP,
-    firewallMaxHP: FIREWALL_MAX_HP
+    firewallMaxHP: FIREWALL_MAX_HP,
+    streamingText: gameState.streamingText || '' // Partial AI response while streaming
   });
 });
 
@@ -913,20 +926,31 @@ async function processBossChatQueue() {
     try {
       const claudeMessages = buildClaudeMessages();
 
-      // Call Claude API
-      const response = await anthropic.messages.create({
+      // Call Claude API with streaming
+      const stream = anthropic.messages.stream({
         model: 'claude-opus-4-5-20251101',
         max_tokens: 300,
         system: ROGUE_AI_SYSTEM_PROMPT,
         messages: claudeMessages
       });
 
+      // Accumulate text as it streams in
+      let aiResponse = '';
+      stream.on('text', (text) => {
+        aiResponse += text;
+        gameState.streamingText = aiResponse;
+      });
+
+      // Wait for the stream to complete
+      await stream.finalMessage();
+
+      // Clear streaming text now that response is complete
+      gameState.streamingText = '';
+
       // Check for valid response
-      if (!response.content || !response.content[0] || !response.content[0].text) {
+      if (!aiResponse) {
         throw new Error('Empty response from Claude API');
       }
-
-      const aiResponse = response.content[0].text;
 
     // Store the transcript for inspection
     lastLLMCall = {
@@ -1006,16 +1030,27 @@ async function processBossChatQueue() {
         });
       }
 
-      // Make immediate API call for breach reaction
+      // Make immediate API call with streaming for breach reaction
       try {
-        const breachResponse = await anthropic.messages.create({
+        const breachStream = anthropic.messages.stream({
           model: 'claude-opus-4-5-20251101',
           max_tokens: 300,
           system: ROGUE_AI_SYSTEM_PROMPT,
           messages: breachClaudeMessages
         });
 
-        const breachAiResponse = breachResponse.content[0].text;
+        // Accumulate text as it streams in
+        let breachAiResponse = '';
+        breachStream.on('text', (text) => {
+          breachAiResponse += text;
+          gameState.streamingText = breachAiResponse;
+        });
+
+        // Wait for stream to complete
+        await breachStream.finalMessage();
+
+        // Clear streaming text
+        gameState.streamingText = '';
 
         // Process the breach response (may contain disconnects too)
         const { messages: breachAiMessages } = processDisconnectCommands(breachAiResponse);

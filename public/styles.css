@@ -1852,6 +1852,12 @@ input[type="text"]::placeholder {
   animation: blink 1s infinite;
 }
 
+/* Streaming cursor animation for AI responses */
+.streaming-cursor {
+  color: #ff9900;
+  animation: blink 0.7s infinite;
+}
+
 /* ================== DISCONNECTED BOX (ELIMINATION - inside terminal) ================== */
 
 .disconnected-box {
