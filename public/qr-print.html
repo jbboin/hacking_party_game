@@ -45,14 +45,8 @@
     .terminal-name {
       font-size: 18px;
       font-weight: bold;
-      margin-bottom: 5px;
       text-transform: uppercase;
       letter-spacing: 2px;
-    }
-    .terminal-hint {
-      font-size: 11px;
-      color: #666;
-      font-style: italic;
     }
     .join-section {
       margin-top: 40px;
@@ -118,19 +112,19 @@
   </div>
 
   <script>
-    // Terminal slugs and their display names with hints
+    // Terminal slugs and their display names
     const terminals = [
-      { slug: 'px7f', name: 'PERMAFROST', hint: 'freezer' },
-      { slug: 'rm3k', name: 'RADIATION-POD', hint: 'microwave' },
-      { slug: 'pq9w', name: 'PLAYER-ONE', hint: 'PS5' },
-      { slug: 'jx2v', name: 'JUNK-SECTOR', hint: 'trash' },
-      { slug: 'pw4n', name: 'PIXEL-WALL', hint: 'TV' },
-      { slug: 'cm8h', name: 'CHAR-MODULE', hint: 'toaster' },
-      { slug: 'eb5t', name: 'EVACUATION-BAY', hint: 'toilet' },
-      { slug: 'cf1r', name: 'CENTRIFUGE', hint: 'washing machine' },
-      { slug: 'rc6y', name: 'RAIN-CHAMBER', hint: 'shower' },
-      { slug: 'al0z', name: 'AIRLOCK', hint: 'exit door' },
-      { slug: 'nb3d', name: 'NUTRIENT-BANK', hint: 'pantry' }
+      { slug: 'px7f', name: 'PERMAFROST' },
+      { slug: 'rm3k', name: 'RADIATION-POD' },
+      { slug: 'pq9w', name: 'PLAYER-ONE' },
+      { slug: 'jx2v', name: 'JUNK-SECTOR' },
+      { slug: 'pw4n', name: 'PIXEL-WALL' },
+      { slug: 'cm8h', name: 'CHAR-MODULE' },
+      { slug: 'eb5t', name: 'EVACUATION-BAY' },
+      { slug: 'cf1r', name: 'CENTRIFUGE' },
+      { slug: 'rc6y', name: 'RAIN-CHAMBER' },
+      { slug: 'al0z', name: 'AIRLOCK' },
+      { slug: 'nb3d', name: 'NUTRIENT-BANK' }
     ];
 
     const baseUrl = `http://${window.location.hostname}:${window.location.port || 3000}`;
@@ -146,7 +140,6 @@
       item.innerHTML = `
         <img src="${qrUrl}" alt="${terminal.name} QR">
         <div class="terminal-name">${terminal.name}</div>
-        <div class="terminal-hint">(${terminal.hint})</div>
       `;
       grid.appendChild(item);
     });
