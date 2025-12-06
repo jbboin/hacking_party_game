@@ -452,6 +452,10 @@
       margin-top: 1rem;
     }
 
+    .firewall-section.hidden {
+      display: none;
+    }
+
     .firewall-container {
       display: flex;
       align-items: center;
@@ -530,6 +534,10 @@
       width: 100%;
       max-width: 900px;
       margin-top: 1rem;
+    }
+
+    .core-section.hidden {
+      display: none;
     }
 
     .core-container {
@@ -941,7 +949,7 @@
       </div>
     </div>
     <!-- Firewall Health Bar (shown during boss phase) -->
-    <div class="firewall-section" id="firewall-section">
+    <div class="firewall-section hidden" id="firewall-section">
       <div class="firewall-container">
         <span class="firewall-label">FIREWALL</span>
         <div class="firewall-bar">
@@ -1003,6 +1011,8 @@
     let bossPlayer = null;
     let localChatHistory = []; // Local chat for instant display
     let waitingForAI = false;
+    let animatedMessageCount = 0; // How many messages have been fully animated
+    let currentlyAnimatingIndex = -1; // Index of message currently being animated (-1 if none)
     let dotCount = 0;
 
     // Firewall HP tracking for damage effects
@@ -1066,6 +1076,9 @@
           if (localChatHistory.length > 0) {
             localChatHistory = [];
             waitingForAI = false;
+            animatedMessageCount = 0;
+            currentlyAnimatingIndex = -1;
+            resetTypewriter();
           }
         } else {
           // Show standby screen
@@ -1075,15 +1088,15 @@
           if (localChatHistory.length > 0) {
             localChatHistory = [];
             waitingForAI = false;
+            animatedMessageCount = 0;
+            currentlyAnimatingIndex = -1;
+            resetTypewriter();
           }
         }
       } catch (err) {
         console.error('Failed to check game state:', err);
       }
     }
-
-    // Track streaming text from server
-    let currentStreamingText = '';
 
     // Update boss phase screen
     function updateBossScreen(data) {
@@ -1097,13 +1110,32 @@
         // Only show system messages whose timestamp has passed
         return msg.timestamp <= now;
       });
-      // Use server's aiProcessing flag
+
+      // Use server's aiProcessing flag for "thinking" indicator
       waitingForAI = data.aiProcessing || false;
-      // Store streaming text and update typewriter
-      currentStreamingText = data.streamingText || '';
-      if (currentStreamingText) {
-        setTypewriterTarget(currentStreamingText);
+
+      // Check if we need to start animating a new message
+      // Only start if not currently animating something
+      if (currentlyAnimatingIndex === -1) {
+        // First, include any non-AI messages that should show immediately
+        while (animatedMessageCount < localChatHistory.length &&
+               localChatHistory[animatedMessageCount].role !== 'ai') {
+          animatedMessageCount++;
+        }
+
+        // Then check if there's an AI message to animate
+        if (animatedMessageCount < localChatHistory.length &&
+            localChatHistory[animatedMessageCount].role === 'ai') {
+          currentlyAnimatingIndex = animatedMessageCount;
+          // Render first to create the streaming div, THEN start animation
+          renderChat();
+          setTypewriterTarget(localChatHistory[animatedMessageCount].content);
+          // Update firewall health bar
+          updateFirewallHP(data.firewallHP, data.firewallMaxHP);
+          return;
+        }
       }
+
       renderChat();
       // Update firewall health bar
       updateFirewallHP(data.firewallHP, data.firewallMaxHP);
@@ -1389,8 +1421,6 @@
 
     // Track last rendered chat state
     let lastChatHtml = '';
-    let lastRenderedMessageCount = 0;
-    let lastRenderedStreamingText = '';
 
     // Typewriter animation state
     let typewriterTargetText = '';     // Full text from server
@@ -1411,6 +1441,33 @@
         } else {
           // Animation complete
           typewriterAnimationId = null;
+
+          // Mark this message as animated
+          if (currentlyAnimatingIndex >= 0) {
+            // Include the animated message in the count
+            animatedMessageCount = currentlyAnimatingIndex + 1;
+            currentlyAnimatingIndex = -1;
+            resetTypewriter();
+
+            // Also include any non-AI messages that follow (they show immediately)
+            while (animatedMessageCount < localChatHistory.length &&
+                   localChatHistory[animatedMessageCount].role !== 'ai') {
+              animatedMessageCount++;
+            }
+
+            // Check if there's another AI message to animate
+            if (animatedMessageCount < localChatHistory.length &&
+                localChatHistory[animatedMessageCount].role === 'ai') {
+              currentlyAnimatingIndex = animatedMessageCount;
+              // Render first to create the streaming div, THEN start animation
+              renderChat();
+              setTypewriterTarget(localChatHistory[animatedMessageCount].content);
+              return;
+            }
+          }
+
+          // Re-render to show updated state
+          renderChat();
         }
       }
       tick();
@@ -1472,72 +1529,59 @@
     // Render the chat messages - only update if content changed
     function renderChat() {
       const chatContainer = document.getElementById('boss-chat');
-      const previousCount = lastRenderedMessageCount;
       const catchingUp = isTypewriterCatchingUp();
-      const needsFullRender = localChatHistory.length !== previousCount;
 
-      // Fast path: only update streaming text content (no new messages)
+      // Fast path: only update streaming text content
       const streamingDiv = chatContainer.querySelector('.chat-message.ai.streaming .content');
-      if (!needsFullRender && (waitingForAI || catchingUp) && streamingDiv) {
-        // Typewriter animation handles updates via setTypewriterTarget
+      if (catchingUp && streamingDiv) {
+        // Typewriter animation handles updates via updateStreamingDisplay
         return;
       }
 
-      // Determine which messages to render
-      // During streaming or catching up, hide the last AI message (it's being animated)
-      let messagesToRender = localChatHistory;
-      if ((waitingForAI || catchingUp) && localChatHistory.length > 0) {
-        const lastMsg = localChatHistory[localChatHistory.length - 1];
-        // AI messages are anything that's not 'user' or 'system'
-        if (lastMsg.role !== 'user' && lastMsg.role !== 'system') {
-          messagesToRender = localChatHistory.slice(0, -1);
-        }
-      }
+      // Show messages up to and including currentlyAnimatingIndex (if animating)
+      // or up to animatedMessageCount (if not animating)
+      const showUpTo = currentlyAnimatingIndex >= 0 ? currentlyAnimatingIndex : animatedMessageCount;
 
-      let html = messagesToRender.map(msg => {
+      let html = '';
+      for (let i = 0; i < showUpTo; i++) {
+        const msg = localChatHistory[i];
         // System messages (disconnect notifications)
         if (msg.role === 'system') {
-          return `
+          html += `
           <div class="chat-message system">
             <div class="system-content">${escapeHtml(msg.content)}</div>
           </div>
         `;
-        }
-        // User messages - green, right-aligned
-        if (msg.role === 'user') {
-          return `
+        } else if (msg.role === 'user') {
+          // User messages - green, right-aligned
+          html += `
           <div class="chat-message user">
             <div class="sender">${escapeHtml(msg.senderName || 'HACKER')}</div>
             <div class="content">${formatWithNewlines(msg.content, false)}</div>
           </div>
         `;
-        }
-        // AI messages
-        return `
-        <div class="chat-message ai">
-          <div class="sender">Q.W.E.E.N.</div>
-          <div class="content">${formatWithNewlines(msg.content, true)}</div>
-        </div>
-      `;
-      }).join('');
-
-      // Add streaming response or typing indicator if waiting for AI or catching up
-      if (waitingForAI || catchingUp) {
-        if (typewriterTargetText) {
-          // Show the partial AI response with typewriter animation
+        } else {
+          // AI messages
           html += `
-          <div class="chat-message ai streaming">
+          <div class="chat-message ai">
             <div class="sender">Q.W.E.E.N.</div>
-            <div class="content">${formatWithNewlines(typewriterDisplayedText, true)}<span class="streaming-cursor">_</span></div>
+            <div class="content">${formatWithNewlines(msg.content, true)}</div>
           </div>
-          `;
-        } else if (waitingForAI) {
-          // Show typing indicator while waiting for first token
-          html += `<div class="typing-indicator">Q.W.E.E.N. is processing<span>...</span></div>`;
+        `;
         }
-      } else {
-        // Typewriter finished - reset for next time
-        resetTypewriter();
+      }
+
+      // Add animated AI message if currently animating
+      if (currentlyAnimatingIndex >= 0) {
+        html += `
+        <div class="chat-message ai streaming">
+          <div class="sender">Q.W.E.E.N.</div>
+          <div class="content">${formatWithNewlines(typewriterDisplayedText, true)}<span class="streaming-cursor">_</span></div>
+        </div>
+        `;
+      } else if (waitingForAI) {
+        // Show typing indicator while waiting for AI to respond (and not animating)
+        html += `<div class="typing-indicator">Q.W.E.E.N. is processing<span>...</span></div>`;
       }
 
       // Only update DOM if content changed
@@ -1548,7 +1592,6 @@
 
         chatContainer.innerHTML = html;
         lastChatHtml = html;
-        lastRenderedMessageCount = localChatHistory.length;
 
         // Restore scroll position, or scroll to bottom if user was already there
         if (wasNearBottom) {

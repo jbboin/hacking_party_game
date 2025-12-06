@@ -222,7 +222,6 @@ let gameState = {
   missions: {}, // { odPlayerId: { targetPlayerId, terminalId, completed, cooldownUntil } }
   adminGuidance: '', // Admin can adjust AI behavior in real-time
   firewallHP: FIREWALL_MAX_HP, // AI health - drops when AI says a player's access code
-  streamingText: '' // Partial AI response while streaming
 };
 
 // Boss chat message queue system - batches multiple player messages into a single LLM call
@@ -286,7 +285,6 @@ function processDisconnectCommands(aiResponse) {
   }
 
   // Split the response around disconnect commands
-  // Keep [DISCONNECT ...] in AI message, NO system message (already added during streaming)
   let lastIndex = 0;
   for (const m of matches) {
     // Add AI text up to and including the disconnect command
@@ -295,7 +293,10 @@ function processDisconnectCommands(aiResponse) {
       messages.push({ role: 'ai', content: beforeAndIncluding });
     }
 
-    // System message was already added during streaming - don't add duplicate
+    // Add system message for the disconnect (only if player was actually disconnected)
+    if (disconnected.includes(m.playerName)) {
+      messages.push({ role: 'system', content: `${m.playerName} was disconnected` });
+    }
 
     lastIndex = m.index + m.length;
   }
@@ -453,26 +454,15 @@ async function triggerFirewallDownReaction() {
       return;
     }
 
-    // Call Claude API with streaming for defeat reaction
-    const stream = anthropic.messages.stream({
+    // Call Claude API for defeat reaction
+    const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5',
       max_tokens: 300,
       system: ROGUE_AI_SYSTEM_PROMPT,
       messages: claudeMessages
     });
 
-    // Accumulate text as it streams in
-    let aiResponse = '';
-    stream.on('text', (text) => {
-      aiResponse += text;
-      gameState.streamingText = aiResponse;
-    });
-
-    // Wait for the stream to complete
-    await stream.finalMessage();
-
-    // Clear streaming text
-    gameState.streamingText = '';
+    const aiResponse = response.content[0]?.text || '';
 
     // Process the response (may contain disconnects)
     const { messages: aiMessages } = processDisconnectCommands(aiResponse);
@@ -863,7 +853,6 @@ app.get('/api/game', (req, res) => {
     terminals: TERMINALS,
     firewallHP: gameState.firewallHP,
     firewallMaxHP: FIREWALL_MAX_HP,
-    streamingText: gameState.streamingText || '', // Partial AI response while streaming
     playerInfo: playerInfo,
     accessCodes: ACCESS_CODES
   });
@@ -1079,95 +1068,31 @@ async function processBossChatQueue() {
     try {
       const claudeMessages = buildClaudeMessages();
 
-      // Call Claude API with streaming
-      const stream = anthropic.messages.stream({
+      // Call Claude API (non-streaming for simplicity)
+      const response = await anthropic.messages.create({
         model: 'claude-haiku-4-5',
         max_tokens: 300,
         system: ROGUE_AI_SYSTEM_PROMPT,
         messages: claudeMessages
       });
 
-      // Accumulate text as it streams in
-      let aiResponse = '';
-      let streamingOffset = 0; // Track how much of aiResponse has been committed to chat history
-      const processedDisconnects = new Set(); // Track already processed disconnects
-
-      stream.on('text', (text) => {
-        aiResponse += text;
-        // Only show text after the last committed disconnect in streamingText
-        gameState.streamingText = aiResponse.substring(streamingOffset);
-
-        // Check for disconnect commands in real-time during streaming
-        const disconnectRegex = /^\s*\[DISCONNECT\s+(.+?)\]\s*$/gim;
-        let match;
-        while ((match = disconnectRegex.exec(aiResponse)) !== null) {
-          const playerName = match[1].trim();
-          const matchKey = `${match.index}-${playerName.toLowerCase()}`;
-
-          // Skip if already processed
-          if (processedDisconnects.has(matchKey)) continue;
-
-          // Find player by name (case-insensitive) on winning team
-          const player = guests.find(g =>
-            g.hackerName.toLowerCase() === playerName.toLowerCase() &&
-            g.team === gameState.winningTeam
-          );
-
-          // Can't disconnect saved players while firewall is up (they're protected inside the core)
-          const canDisconnect = player && !player.disconnected && (!player.saved || gameState.firewallHP <= 0);
-
-          if (canDisconnect) {
-            player.disconnected = true;
-            saveGuests();
-            processedDisconnects.add(matchKey);
-            console.log(`ROGUE AI disconnected player (streaming): ${player.hackerName}`);
-
-            // Add AI text up to and including [DISCONNECT...] to chat history
-            const endOfDisconnect = match.index + match[0].length;
-            const aiTextUpToDisconnect = aiResponse.substring(streamingOffset, endOfDisconnect).trim();
-            if (aiTextUpToDisconnect) {
-              gameState.bossChatHistory.push({
-                role: 'ai',
-                content: aiTextUpToDisconnect
-              });
-            }
-
-            // Add system message to chat history
-            gameState.bossChatHistory.push({
-              role: 'system',
-              content: `${player.hackerName} was disconnected`
-            });
-
-            // Update offset so streamingText only shows what comes after
-            streamingOffset = endOfDisconnect;
-            gameState.streamingText = aiResponse.substring(streamingOffset);
-          }
-        }
-      });
-
-      // Wait for the stream to complete
-      await stream.finalMessage();
-
-      // Clear streaming text now that response is complete
-      gameState.streamingText = '';
+      const aiResponse = response.content[0]?.text || '';
 
       // Check for valid response
       if (!aiResponse) {
         throw new Error('Empty response from Claude API');
       }
 
-    // Store the transcript for inspection
-    lastLLMCall = {
-      timestamp: new Date().toISOString(),
-      systemPrompt: ROGUE_AI_SYSTEM_PROMPT,
-      messages: claudeMessages,
-      response: aiResponse
-    };
+      // Store the transcript for inspection
+      lastLLMCall = {
+        timestamp: new Date().toISOString(),
+        systemPrompt: ROGUE_AI_SYSTEM_PROMPT,
+        messages: claudeMessages,
+        response: aiResponse
+      };
 
-    // Process disconnect commands and split AI response into messages
-    // Only process text after streamingOffset (text before was already committed during streaming)
-    const remainingText = aiResponse.substring(streamingOffset).trim();
-    const { messages: aiMessages, disconnected: disconnectedPlayers } = processDisconnectCommands(remainingText);
+      // Process disconnect commands and split AI response into messages
+      const { messages: aiMessages, disconnected: disconnectedPlayers } = processDisconnectCommands(aiResponse);
 
     // Check for firewall breaches (AI said a player's access code)
     const breaches = checkFirewallBreach(aiResponse);
@@ -1249,27 +1174,16 @@ async function processBossChatQueue() {
         });
       }
 
-      // Make immediate API call with streaming for breach reaction
+      // Make immediate API call for breach reaction
       try {
-        const breachStream = anthropic.messages.stream({
+        const breachResponse = await anthropic.messages.create({
           model: 'claude-haiku-4-5',
           max_tokens: 300,
           system: ROGUE_AI_SYSTEM_PROMPT,
           messages: breachClaudeMessages
         });
 
-        // Accumulate text as it streams in
-        let breachAiResponse = '';
-        breachStream.on('text', (text) => {
-          breachAiResponse += text;
-          gameState.streamingText = breachAiResponse;
-        });
-
-        // Wait for stream to complete
-        await breachStream.finalMessage();
-
-        // Clear streaming text
-        gameState.streamingText = '';
+        const breachAiResponse = breachResponse.content[0]?.text || '';
 
         // Process the breach response (may contain disconnects too)
         const { messages: breachAiMessages } = processDisconnectCommands(breachAiResponse);

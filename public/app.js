@@ -725,7 +725,8 @@ let bossPhaseActive = false;
 let bossWinningTeam = null;
 let bossChatHistory = [];
 let bossAiProcessing = false;
-let bossStreamingText = ''; // Partial AI response as it streams
+let animatedMessageCount = 0; // How many messages have been fully animated
+let currentlyAnimatingIndex = -1; // Index of message currently being animated (-1 if none)
 let playerTeam = localStorage.getItem('team');
 let bossPlayerInfo = []; // Player info for chat highlighting
 let bossAccessCodes = []; // Access codes for AI highlighting
@@ -832,10 +833,9 @@ async function checkBossPhase(playerId) {
         document.getElementById('access-code-box')?.classList.add('hidden');
       }
 
-      // Update chat, AI processing state, and streaming text from server
+      // Update chat and AI processing state from server
       const serverChat = data.bossChatHistory || [];
       const serverAiProcessing = data.aiProcessing || false;
-      const serverStreamingText = data.streamingText || '';
 
       // Store player info and access codes for chat highlighting
       bossPlayerInfo = data.playerInfo || [];
@@ -850,19 +850,33 @@ async function checkBossPhase(playerId) {
         return msg.timestamp <= now;
       });
 
-      // Re-render if chat changed, AI processing state changed, or streaming text updated
-      if (JSON.stringify(filteredChat) !== JSON.stringify(bossChatHistory) ||
-          serverAiProcessing !== bossAiProcessing ||
-          serverStreamingText !== bossStreamingText) {
-        bossChatHistory = [...filteredChat];
-        bossAiProcessing = serverAiProcessing;
-        bossStreamingText = serverStreamingText;
+      // Update state
+      const chatChanged = JSON.stringify(filteredChat) !== JSON.stringify(bossChatHistory);
+      bossChatHistory = [...filteredChat];
+      bossAiProcessing = serverAiProcessing;
 
-        // Trigger typewriter animation for new streaming text
-        if (serverStreamingText && serverAiProcessing) {
-          setTypewriterTarget(serverStreamingText);
+      // Check if we need to start animating a new message
+      // Only start if not currently animating something
+      if (currentlyAnimatingIndex === -1) {
+        // First, include any non-AI messages that should show immediately
+        while (animatedMessageCount < bossChatHistory.length &&
+               bossChatHistory[animatedMessageCount].role !== 'ai') {
+          animatedMessageCount++;
         }
 
+        // Then check if there's an AI message to animate
+        if (animatedMessageCount < bossChatHistory.length &&
+            bossChatHistory[animatedMessageCount].role === 'ai') {
+          currentlyAnimatingIndex = animatedMessageCount;
+          // Render first to create the streaming div, THEN start animation
+          renderBossChat();
+          setTypewriterTarget(bossChatHistory[animatedMessageCount].content);
+          return; // Already rendered
+        }
+      }
+
+      // Re-render if chat changed or AI processing state changed
+      if (chatChanged || serverAiProcessing !== bossAiProcessing) {
         renderBossChat();
       }
 
@@ -871,6 +885,9 @@ async function checkBossPhase(playerId) {
       if (bossPhaseActive) {
         // Was active, now ended - clear state
         bossChatHistory = [];
+        animatedMessageCount = 0;
+        currentlyAnimatingIndex = -1;
+        resetTypewriter();
       }
       bossPhaseActive = false;
       bossWinningTeam = null;
@@ -882,10 +899,6 @@ async function checkBossPhase(playerId) {
     console.error('Failed to check boss phase:', err);
   }
 }
-
-// Render boss chat messages
-let lastRenderedMessageCount = 0;
-let lastRenderedStreamingText = '';
 
 // Typewriter animation state
 let typewriterTargetText = '';     // Full text from server
@@ -904,8 +917,34 @@ function animateTypewriter() {
       updateStreamingDisplay();
       typewriterAnimationId = setTimeout(tick, TYPEWRITER_CHAR_DELAY);
     } else {
-      // Animation complete - trigger re-render to show final state from history
+      // Animation complete
       typewriterAnimationId = null;
+
+      // Mark this message as animated
+      if (currentlyAnimatingIndex >= 0) {
+        // Include the animated message in the count
+        animatedMessageCount = currentlyAnimatingIndex + 1;
+        currentlyAnimatingIndex = -1;
+        resetTypewriter();
+
+        // Also include any non-AI messages that follow (they show immediately)
+        while (animatedMessageCount < bossChatHistory.length &&
+               bossChatHistory[animatedMessageCount].role !== 'ai') {
+          animatedMessageCount++;
+        }
+
+        // Check if there's another AI message to animate
+        if (animatedMessageCount < bossChatHistory.length &&
+            bossChatHistory[animatedMessageCount].role === 'ai') {
+          currentlyAnimatingIndex = animatedMessageCount;
+          // Render first to create the streaming div, THEN start animation
+          renderBossChat();
+          setTypewriterTarget(bossChatHistory[animatedMessageCount].content);
+          return; // Already rendered
+        }
+      }
+
+      // Re-render to show updated state
       renderBossChat();
     }
   }
@@ -968,82 +1007,60 @@ function resetTypewriter() {
 
 function renderBossChat() {
   const container = document.getElementById('boss-chat-container');
-  const previousCount = lastRenderedMessageCount;
   const catchingUp = isTypewriterCatchingUp();
-  const needsFullRender = bossChatHistory.length !== previousCount;
 
-  // Check if we only need to update streaming text (no new messages)
+  // Fast path: only update streaming text content
   const streamingDiv = container.querySelector('.boss-chat-message.streaming .content');
-
-  // Fast path: typewriter animation handles updates - applies during streaming OR catching up
-  if (!needsFullRender && (bossAiProcessing || catchingUp) && streamingDiv) {
+  if (catchingUp && streamingDiv) {
+    // Typewriter animation handles updates via updateStreamingDisplay
     return;
   }
 
-  // Full render needed (new messages or state change)
-  lastRenderedMessageCount = bossChatHistory.length;
+  // Show messages up to and including currentlyAnimatingIndex (if animating)
+  // or up to animatedMessageCount (if not animating)
+  const showUpTo = currentlyAnimatingIndex >= 0 ? currentlyAnimatingIndex : animatedMessageCount;
 
-  // Hide the last AI message from history while streaming or catching up
-  // (so we don't show the message alongside the animated streaming div)
-  let messagesToRender = bossChatHistory;
-  if ((bossAiProcessing || catchingUp) && bossChatHistory.length > 0) {
-    const lastMsg = bossChatHistory[bossChatHistory.length - 1];
-    // AI messages are anything that's not 'user' or 'system'
-    if (lastMsg.role !== 'user' && lastMsg.role !== 'system') {
-      messagesToRender = bossChatHistory.slice(0, -1);
-    }
-  }
-
-  let html = messagesToRender.map((msg, index) => {
-    const isNew = index >= previousCount;
-
+  let html = '';
+  for (let i = 0; i < showUpTo; i++) {
+    const msg = bossChatHistory[i];
     // System messages (disconnect notifications) get special styling
     if (msg.role === 'system') {
-      return `
-      <div class="boss-chat-message system${isNew ? ' new-message' : ''}">
+      html += `
+      <div class="boss-chat-message system">
         <div class="system-content">${escapeHtml(msg.content)}</div>
       </div>
     `;
-    }
-
-    // User messages - green, right-aligned
-    if (msg.role === 'user') {
-      return `
-      <div class="boss-chat-message user${isNew ? ' new-message' : ''}">
+    } else if (msg.role === 'user') {
+      // User messages - green, right-aligned
+      html += `
+      <div class="boss-chat-message user">
         <div class="sender">${escapeHtml(msg.senderName || 'HACKER')}</div>
         <div class="content">${formatWithNewlines(msg.content, false)}</div>
       </div>
     `;
-    }
-
-    // AI messages
-    return `
-    <div class="boss-chat-message ai${isNew ? ' new-message' : ''}">
-      <div class="sender">Q.W.E.E.N.</div>
-      <div class="content">${formatWithNewlines(msg.content, true)}</div>
-    </div>
-  `;
-  }).join('');
-
-  // Show streaming div if waiting for AI OR catching up
-  if (bossAiProcessing || catchingUp) {
-    if (typewriterTargetText) {
-      // Show the partial AI response using typewriter-animated text
-      const displayText = typewriterDisplayedText || '';
+    } else {
+      // AI messages
       html += `
-      <div class="boss-chat-message ai streaming new-message">
+      <div class="boss-chat-message ai">
         <div class="sender">Q.W.E.E.N.</div>
-        <div class="content">${formatWithNewlines(displayText, true)}<span class="streaming-cursor">_</span></div>
+        <div class="content">${formatWithNewlines(msg.content, true)}</div>
       </div>
-      `;
-      lastRenderedStreamingText = bossStreamingText;
-    } else if (bossAiProcessing) {
-      // Show typing indicator while waiting for first token
-      html += `<div class="boss-typing-indicator new-message">Q.W.E.E.N. is processing<span>...</span></div>`;
+    `;
     }
-  } else {
-    // Typewriter finished - reset for next time
-    resetTypewriter();
+  }
+
+  // Add animated AI message if currently animating
+  if (currentlyAnimatingIndex >= 0) {
+    const displayText = typewriterDisplayedText || '';
+    html += `
+    <div class="boss-chat-message ai streaming new-message">
+      <div class="sender">Q.W.E.E.N.</div>
+      <div class="content">${formatWithNewlines(displayText, true)}<span class="streaming-cursor">_</span></div>
+    </div>
+    `;
+  } else if (bossAiProcessing) {
+    // Show typing indicator while waiting for AI to respond (and not animating)
+    html += `<div class="boss-typing-indicator new-message">Q.W.E.E.N. is processing<span>...</span></div>`;
   }
 
   // Save scroll position before modifying DOM
@@ -1111,11 +1128,10 @@ async function sendBossMessage() {
     const data = await response.json();
 
     if (data.success) {
-      // Message was accepted - clear input and update chat from server
+      // Message was accepted - clear input
       input.value = '';
-      bossChatHistory = data.chatHistory;
-      renderBossChat();
-      // Immediately start fast polling to catch the streaming response
+      // Don't update chat directly - let polling handle it so animation logic runs
+      // Immediately start fast polling to catch the response
       triggerFastPolling();
     } else {
       // Show error - keep message in input
