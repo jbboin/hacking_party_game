@@ -786,8 +786,8 @@ async function checkBossPhase(playerId) {
         document.getElementById('waiting-box')?.classList.add('hidden');
         document.getElementById('verifications-box')?.classList.add('hidden');
         document.getElementById('access-code-box')?.classList.add('hidden');
-      } else if (playerSaved && firewallHP > 0) {
-        // Player saved but firewall still up - show saved overlay, hide input
+      } else if (playerSaved && !data.corePhase) {
+        // Player saved but not yet in core phase - show saved overlay, hide input
         savedBox.classList.remove('hidden');
         bossBox.classList.remove('hidden');
         inputContainer.classList.add('hidden');
@@ -798,8 +798,8 @@ async function checkBossPhase(playerId) {
         document.getElementById('hack-box')?.classList.add('hidden');
         document.getElementById('waiting-box')?.classList.add('hidden');
         document.getElementById('verifications-box')?.classList.add('hidden');
-      } else if (playerSaved && firewallHP === 0) {
-        // Player saved and firewall is down - show chat interface again!
+      } else if (playerSaved && data.corePhase) {
+        // Player saved and in core phase - show chat interface again!
         // (Destruction password is entered on the scoreboard page)
         bossBox.classList.remove('hidden');
         inputContainer.classList.remove('hidden');
