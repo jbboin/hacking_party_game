@@ -1446,6 +1446,7 @@
     let gameStarted = false;
     let bossPhase = false;
     let corePhase = false;
+    let corePhaseFocused = false;
     let bossPlayer = null;
     let localChatHistory = []; // Local chat for instant display
     let waitingForAI = false;
@@ -1549,6 +1550,11 @@
           bossTerminal.classList.add('hidden');
           coreSection.classList.remove('hidden');
           updateCoreScreen(data);
+          // Focus password input on first core phase load
+          if (!corePhaseFocused) {
+            corePhaseFocused = true;
+            document.getElementById('core-password')?.focus();
+          }
         } else if (bossPhase) {
           // Show boss phase screen - show boss terminal
           hideAllIntroScreens();
