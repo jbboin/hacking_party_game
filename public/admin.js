@@ -8,11 +8,12 @@ async function loadGameState() {
     const response = await fetch('/api/game');
     const data = await response.json();
     const wasBossMode = isBossMode;
+    const wasCorePhase = isCorePhase;
     isBossMode = data.bossPhase || false;
     isCorePhase = data.corePhase || false;
     updateGameUI(data.started, data.bossPhase, data.firewallHP, data.corePhase);
-    // Reload guests if boss mode changed (to update buttons)
-    if (wasBossMode !== isBossMode) {
+    // Reload guests if boss mode or core phase changed (to update buttons/status)
+    if (wasBossMode !== isBossMode || wasCorePhase !== isCorePhase) {
       loadGuests();
     }
   } catch (error) {
@@ -373,11 +374,11 @@ async function loadGuests() {
 
     // Sort players
     let sorted;
-    if (isBossMode) {
-      // Boss mode: saved first, then active, then disconnected
+    if (isBossMode || isCorePhase) {
+      // Boss/Core mode: saved first, then active, then disconnected
       sorted = [...guests].sort((a, b) => {
         const getStatusOrder = (g) => {
-          if (g.saved) return 0;
+          if (g.saved && !g.disconnected) return 0;
           if (g.disconnected) return 2;
           return 1; // active
         };
@@ -392,7 +393,33 @@ async function loadGuests() {
       const teamClass = guest.team === 'red' ? 'team-red-border' : 'team-blue-border';
       const teamTextClass = guest.team === 'red' ? 'team-red-text' : 'team-blue-text';
 
-      if (isBossMode) {
+      if (isCorePhase) {
+        // Core phase: show status for saved players (in core vs disconnected from core)
+        let statusText = '';
+        let statusClass = '';
+        if (guest.saved && guest.disconnected) {
+          statusText = '✗ DISCONNECTED';
+          statusClass = 'status-disconnected';
+        } else if (guest.saved) {
+          statusText = '✓ IN CORE';
+          statusClass = 'status-saved';
+        } else if (guest.disconnected) {
+          statusText = '✗ DISCONNECTED';
+          statusClass = 'status-disconnected';
+        }
+        return `
+          <div class="guest-card ${teamClass}">
+            <div class="guest-info-col">
+              <span class="guest-name">${escapeHtml(guest.hackerName)}</span>
+              <span class="access-code">[${guest.accessCode || '???'}]</span>
+            </div>
+            <div class="guest-controls-col">
+              ${statusText ? `<span class="player-status ${statusClass}">${statusText}</span>` : ''}
+              <button class="btn-delete" onclick="deleteGuest(${guest.id})">X</button>
+            </div>
+          </div>
+        `;
+      } else if (isBossMode) {
         // Boss mode: show SAVE/DISCONNECT buttons, status indicators
         const statusText = guest.saved ? '✓ SAVED' : (guest.disconnected ? '✗ DISCONNECTED' : '');
         const statusClass = guest.saved ? 'status-saved' : (guest.disconnected ? 'status-disconnected' : '');

@@ -763,10 +763,21 @@ async function checkBossPhase(playerId) {
       bossPhaseActive = false;
       playerTeam = localStorage.getItem('team');
 
-      // Hide boss phase UI, show core phase UI
+      // Check player status - only saved players who aren't disconnected can participate
+      let playerCanParticipate = false;
+      if (playerId) {
+        try {
+          const playerResponse = await fetch(`/api/player/${playerId}`);
+          const playerData = await playerResponse.json();
+          // Player can participate if: saved AND not disconnected
+          playerCanParticipate = playerData.saved && !playerData.disconnected;
+        } catch (e) {
+          console.error('Failed to check player status:', e);
+        }
+      }
+
+      // Hide boss phase UI
       bossBox.classList.add('hidden');
-      coreBox.classList.remove('hidden');
-      disconnectedBox.classList.add('hidden');
       savedBox.classList.add('hidden');
 
       // Hide other elements
@@ -777,8 +788,17 @@ async function checkBossPhase(playerId) {
       document.getElementById('access-code-box')?.classList.add('hidden');
       document.getElementById('destruction-box')?.classList.add('hidden');
 
-      // Update core chat
-      updateCoreChat(data);
+      if (!playerCanParticipate) {
+        // Player can't participate (not saved, or disconnected) - show disconnected overlay
+        coreBox.classList.add('hidden');
+        disconnectedBox.classList.remove('hidden');
+      } else {
+        // Player is in the core - show core chat UI
+        coreBox.classList.remove('hidden');
+        disconnectedBox.classList.add('hidden');
+        // Update core chat
+        updateCoreChat(data);
+      }
       return;
     }
 
@@ -1406,7 +1426,7 @@ function renderCoreChat() {
   for (let i = 0; i < showUpTo; i++) {
     const msg = coreChatHistory[i];
     // Skip GAME_MASTER messages (used internally to prompt AI)
-    if (msg.senderName === 'GAME_MASTER') {
+    if (msg.senderName === 'GAME_MASTER' || msg.role === 'gamemaster') {
       continue;
     } else if (msg.role === 'system') {
       html += `

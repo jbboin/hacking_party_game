@@ -2146,7 +2146,7 @@
       for (let i = 0; i < showUpTo; i++) {
         const msg = coreChatHistory[i];
         // Skip GAME_MASTER messages (used internally to prompt AI)
-        if (msg.senderName === 'GAME_MASTER') {
+        if (msg.senderName === 'GAME_MASTER' || msg.role === 'gamemaster') {
           continue;
         } else if (msg.role === 'system') {
           html += `

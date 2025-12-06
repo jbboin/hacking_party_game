@@ -321,7 +321,8 @@ let gameState = {
   coreChatHistory: [], // Chat history for the core phase (separate from boss phase)
   coreAiProcessing: false, // Whether AI is processing a core phase message
   missions: {}, // { odPlayerId: { targetPlayerId, terminalId, completed, cooldownUntil } }
-  adminGuidance: '', // Admin can adjust AI behavior in real-time
+  adminGuidance: '', // Admin can adjust AI behavior in real-time (boss phase)
+  coreAdminGuidance: '', // Admin can adjust AI behavior in real-time (core phase)
   firewallHP: FIREWALL_MAX_HP, // AI health - drops when AI says a player's access code
   gameWon: false, // Whether the game has been won
 };
@@ -329,6 +330,14 @@ let gameState = {
 // Boss chat message queue system - batches multiple player messages into a single LLM call
 const bossChatQueue = {
   messages: [],        // Queued messages: { player, message, resolve, reject }
+  timer: null,         // Debounce timer
+  processing: false,   // Whether we're currently processing a batch
+  DEBOUNCE_MS: 500     // Wait this long for more messages before processing
+};
+
+// Core chat message queue system - batches multiple player messages into a single LLM call
+const coreChatQueue = {
+  messages: [],        // Queued messages: { senderName, message }
   timer: null,         // Debounce timer
   processing: false,   // Whether we're currently processing a batch
   DEBOUNCE_MS: 500     // Wait this long for more messages before processing
@@ -1114,14 +1123,176 @@ app.post('/api/game/boss', (req, res) => {
   });
 });
 
-// Helper function to process core AI response
+// Process the queued core chat messages (similar to boss phase batching)
+async function processCoreChatQueue() {
+  if (coreChatQueue.messages.length === 0 || coreChatQueue.processing) {
+    return;
+  }
+
+  coreChatQueue.processing = true;
+  const batch = [...coreChatQueue.messages];
+  coreChatQueue.messages = [];
+
+  // Log the batch
+  const senderNames = batch.map(b => b.senderName).join(', ');
+  console.log(`Core chat batch: ${batch.length} message(s) from [${senderNames}]`);
+
+  // Add all user messages to history
+  for (const msg of batch) {
+    gameState.coreChatHistory.push({
+      role: 'user',
+      content: msg.message,
+      senderName: msg.senderName
+    });
+  }
+
+  // Build Claude messages from history
+  function buildClaudeMessages() {
+    const claudeMessages = [];
+    let pendingUserMessages = [];
+
+    for (const msg of gameState.coreChatHistory) {
+      if (msg.role === 'user') {
+        // Check if it's a GAME_MASTER message (from initial roster or admin)
+        if (msg.senderName === 'GAME_MASTER') {
+          // Check if content already has [GAME_MASTER]: prefix (from initial roster)
+          if (msg.content.startsWith('[GAME_MASTER]:')) {
+            pendingUserMessages.push(msg.content);
+          } else {
+            pendingUserMessages.push(`[GAME_MASTER] IMPORTANT - Follow this direction immediately: ${msg.content}`);
+          }
+        } else {
+          pendingUserMessages.push(`[${msg.senderName}]: ${msg.content}`);
+        }
+      } else if (msg.role === 'gamemaster') {
+        // Gamemaster messages stored separately (from admin guidance)
+        pendingUserMessages.push(`[GAME_MASTER] IMPORTANT - Follow this direction immediately: ${msg.content}`);
+      } else if (msg.role === 'system') {
+        // System messages are game events
+        pendingUserMessages.push(`[SYSTEM]: ${msg.content}`);
+      } else if (msg.role === 'ai') {
+        // Flush pending user messages before adding AI message
+        if (pendingUserMessages.length > 0) {
+          claudeMessages.push({
+            role: 'user',
+            content: pendingUserMessages.join('\n')
+          });
+          pendingUserMessages = [];
+        }
+        claudeMessages.push({
+          role: 'assistant',
+          content: msg.content
+        });
+      }
+    }
+
+    // Flush any remaining user messages (include GAME_MASTER guidance if set)
+    if (pendingUserMessages.length > 0) {
+      // Add GAME_MASTER guidance at the START of this batch if set
+      if (gameState.coreAdminGuidance && gameState.coreAdminGuidance.trim()) {
+        // Find position to insert gamemaster (after last AI message, before current user batch)
+        let insertPos = 0;
+        for (let i = gameState.coreChatHistory.length - 1; i >= 0; i--) {
+          if (gameState.coreChatHistory[i].role === 'ai') {
+            insertPos = i + 1;
+            break;
+          }
+        }
+        // Store gamemaster message in history at the right position (before user messages)
+        gameState.coreChatHistory.splice(insertPos, 0, {
+          role: 'gamemaster',
+          content: gameState.coreAdminGuidance
+        });
+        pendingUserMessages.unshift(`[GAME_MASTER] IMPORTANT - Follow this direction immediately: ${gameState.coreAdminGuidance}`);
+        // Clear guidance after use (it's consumed by this batch)
+        gameState.coreAdminGuidance = '';
+      }
+
+      // Add SYSTEM message listing active players in core
+      const savedPlayers = guests.filter(g => g.saved && !g.disconnected);
+      const playerNames = savedPlayers.map(g => g.hackerName);
+      const canEliminate = Math.max(0, savedPlayers.length - 1);
+
+      let playerRosterMsg = `[SYSTEM]: HACKERS IN CORE: ${playerNames.length > 0 ? playerNames.join(', ') : 'none'}`;
+      playerRosterMsg += ` | CAN STILL ELIMINATE: ${canEliminate} player${canEliminate !== 1 ? 's' : ''}`;
+
+      // Insert after GAME_MASTER but before user messages
+      const gamemasterIdx = pendingUserMessages.findIndex(m => m.startsWith('[GAME_MASTER]'));
+      if (gamemasterIdx >= 0) {
+        pendingUserMessages.splice(gamemasterIdx + 1, 0, playerRosterMsg);
+      } else {
+        pendingUserMessages.unshift(playerRosterMsg);
+      }
+
+      claudeMessages.push({
+        role: 'user',
+        content: pendingUserMessages.join('\n')
+      });
+    }
+
+    return claudeMessages;
+  }
+
+  gameState.coreAiProcessing = true;
+
+  try {
+    const claudeMessages = buildClaudeMessages();
+
+    // Call Claude API
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 300,
+      system: CORE_AI_SYSTEM_PROMPT,
+      messages: claudeMessages
+    });
+
+    const aiResponse = response.content[0]?.text || '';
+
+    // Store transcript for debugging
+    lastLLMCall = {
+      timestamp: new Date().toISOString(),
+      phase: 'core',
+      systemPrompt: CORE_AI_SYSTEM_PROMPT,
+      messages: claudeMessages,
+      response: aiResponse
+    };
+
+    // Process the response (may contain disconnects)
+    const { messages: aiMessages, disconnected } = processCoreDisconnectCommands(aiResponse);
+
+    // Add all messages to core chat history
+    for (const msg of aiMessages) {
+      gameState.coreChatHistory.push(msg);
+    }
+
+    if (disconnected.length > 0) {
+      console.log('Core AI disconnected players:', disconnected);
+    }
+
+    console.log('Core AI response:', aiResponse);
+  } catch (err) {
+    console.error('Core AI error:', err);
+    gameState.coreChatHistory.push({
+      role: 'ai',
+      content: '[CRITICAL ERROR] ...systems... failing...'
+    });
+  } finally {
+    gameState.coreAiProcessing = false;
+    coreChatQueue.processing = false;
+  }
+}
+
+// Helper function to process core AI response (for initial greeting only)
 async function processCoreAIResponse() {
   gameState.coreAiProcessing = true;
 
   try {
-    // Build messages for Claude
+    // Build messages for Claude - simple version for initial greeting
     const claudeMessages = gameState.coreChatHistory.map(msg => {
       if (msg.role === 'user') {
+        if (msg.senderName === 'GAME_MASTER') {
+          return { role: 'user', content: msg.content };
+        }
         return { role: 'user', content: `[${msg.senderName}]: ${msg.content}` };
       } else if (msg.role === 'ai') {
         return { role: 'assistant', content: msg.content };
@@ -2200,21 +2371,27 @@ app.post('/api/core/chat', async (req, res) => {
     return res.status(400).json({ error: 'Message is required' });
   }
 
-  // Add user message to core chat history
-  gameState.coreChatHistory.push({
-    role: 'user',
-    content: message.trim(),
-    senderName: senderName || 'HACKER'
+  // Queue the message for batching (similar to boss phase)
+  coreChatQueue.messages.push({
+    senderName: senderName || 'HACKER',
+    message: message.trim()
   });
+
+  // Clear existing timer and set new one (debounce)
+  if (coreChatQueue.timer) {
+    clearTimeout(coreChatQueue.timer);
+  }
 
   // Return immediately
   res.json({ success: true });
 
-  // Process AI response asynchronously (includes disconnect handling)
-  processCoreAIResponse();
+  // Process after debounce delay (allows batching multiple messages)
+  coreChatQueue.timer = setTimeout(() => {
+    processCoreChatQueue();
+  }, coreChatQueue.DEBOUNCE_MS);
 });
 
-// API: Send GAME_MASTER guidance during core phase (triggers AI response)
+// API: Send GAME_MASTER guidance during core phase (queued for next batch)
 app.post('/api/core/guidance', async (req, res) => {
   const { guidance } = req.body;
 
@@ -2226,20 +2403,18 @@ app.post('/api/core/guidance', async (req, res) => {
     return res.status(400).json({ error: 'Guidance is required' });
   }
 
-  // Add GAME_MASTER message to core chat history (hidden from players)
-  gameState.coreChatHistory.push({
-    role: 'user',
-    content: `[GAME_MASTER]: ${guidance.trim()}`,
-    senderName: 'GAME_MASTER'
-  });
+  // Queue the guidance (will be batched with next user message)
+  // Append to existing guidance if multiple are sent before next batch
+  if (gameState.coreAdminGuidance) {
+    gameState.coreAdminGuidance += ' | ' + guidance.trim();
+  } else {
+    gameState.coreAdminGuidance = guidance.trim();
+  }
 
-  console.log('Core GAME_MASTER guidance:', guidance.trim());
+  console.log('Core GAME_MASTER guidance queued:', guidance.trim());
 
   // Respond immediately
-  res.json({ success: true });
-
-  // Trigger AI response asynchronously
-  processCoreAIResponse();
+  res.json({ success: true, guidance: gameState.coreAdminGuidance });
 });
 
 // API: Submit destruction password during core phase
