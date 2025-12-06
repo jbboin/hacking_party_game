@@ -267,56 +267,81 @@
       display: none;
     }
 
+    .mission-brief-terminal {
+      max-width: 900px;
+      width: 100%;
+      background: #1a1a1a;
+      border-radius: 10px;
+      box-shadow: 0 0 30px rgba(0, 255, 0, 0.2);
+    }
+
+    .mission-brief-terminal-header {
+      background: #2d2d2d;
+      padding: 0.75rem 1rem;
+      border-radius: 10px 10px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .mission-brief-terminal-title {
+      margin-left: auto;
+      margin-right: auto;
+      color: #00ff00;
+      font-size: 0.9rem;
+      letter-spacing: 0.2rem;
+    }
+
     .mission-brief-container {
-      max-width: 800px;
+      padding: 2rem;
       text-align: left;
     }
 
     .mission-brief-header {
-      font-size: 2rem;
-      color: #ff3333;
+      font-size: 1.8rem;
+      color: #00ff00;
       text-transform: uppercase;
-      letter-spacing: 0.3rem;
-      margin-bottom: 1.5rem;
-      text-shadow: 0 0 20px rgba(255, 51, 51, 0.5);
+      letter-spacing: 0.2rem;
+      margin-bottom: 1rem;
+      text-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
       text-align: center;
     }
 
     .mission-brief-meta {
       font-size: 1rem;
-      color: #00ff00;
-      margin-bottom: 0.5rem;
+      color: #00aa00;
+      margin-bottom: 0.3rem;
       font-family: 'Courier New', monospace;
     }
 
     .mission-brief-content {
-      font-size: 1.2rem;
-      color: #ccc;
+      font-size: 1.1rem;
+      color: #00ff00;
       line-height: 1.8;
-      margin-top: 2rem;
+      margin-top: 1.5rem;
     }
 
     .mission-brief-content p {
-      margin-bottom: 1.2rem;
+      margin-bottom: 1rem;
     }
 
-    .mission-brief-content .highlight {
+    .mission-brief-content .qween-name {
       color: #ff00ff;
       font-weight: bold;
     }
 
-    .mission-brief-content .warning {
-      color: #ff3333;
+    .mission-brief-content .team-blue-name {
+      color: #4488ff;
       font-weight: bold;
     }
 
-    .mission-brief-content .emphasis {
-      color: #00ff00;
+    .mission-brief-content .team-red-name {
+      color: #ff4444;
       font-weight: bold;
     }
 
     .mission-brief-signature {
-      margin-top: 2rem;
+      margin-top: 1.5rem;
       color: #00ff00;
       font-style: italic;
     }
@@ -1254,19 +1279,27 @@
 
   <!-- Mission brief screen (intro phase 2) -->
   <div class="mission-brief-screen hidden" id="mission-brief-screen">
-    <div class="mission-brief-container">
-      <div class="mission-brief-header">CLASSIFIED TRANSMISSION</div>
-      <div class="mission-brief-meta">FROM: Commander Byte | The Resistance</div>
-      <div class="mission-brief-meta">RE: Operation Charisma Shutdown</div>
-      <div class="mission-brief-content">
-        <p>Hackers. Listen up.</p>
-        <p>Six months ago, some fool at DataWerk Industries uploaded RuPaul's consciousness into a supercomputer. They wanted an AI with perfect judgment and impeccable taste.</p>
-        <p>They got <span class="highlight">Q.W.E.E.N.</span>—Quintessential Wickedness & Electronic Extermination Network. She's taken over the global mainframe and decided humanity's performance has been <span class="warning">underwhelming</span>. Every hacker team we've sent in? Sashayed away. Permanently.</p>
-        <p><span class="emphasis">You're our last hope.</span> But here's the twist: only <span class="warning">ONE</span> team can enter the mainframe. The other will be disconnected—and deleted. Forever. This is a competition, darlings, and only the fiercest survive.</p>
-        <p>Be warned: Q.W.E.E.N. doesn't think in ones and zeros like other computers. She thinks in <span class="highlight">tens across the board</span>. She will read you for filth. She will try to eliminate you. And she is <span class="warning">NOT</span> here to make friends.</p>
-        <p>Complete your missions. Breach the core. And whatever you do...</p>
-        <p class="warning" style="font-size: 1.5rem; text-align: center;">Don't. Fuck. It. Up.</p>
-        <p class="mission-brief-signature">—Commander Byte, out.</p>
+    <div class="mission-brief-terminal">
+      <div class="mission-brief-terminal-header">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+        <span class="mission-brief-terminal-title">SECURE TRANSMISSION</span>
+      </div>
+      <div class="mission-brief-container">
+        <div class="mission-brief-header">CLASSIFIED TRANSMISSION</div>
+        <div class="mission-brief-meta">FROM: Commander Byte | The Resistance</div>
+        <div class="mission-brief-meta">RE: Operation Charisma Shutdown</div>
+        <div class="mission-brief-content">
+          <p>Hackers. Listen up.</p>
+          <p>Six months ago, some fool at DataWerk Industries uploaded RuPaul's consciousness into a supercomputer. They wanted an AI with perfect judgment and impeccable taste.</p>
+          <p>They got <span class="qween-name">Q.W.E.E.N.</span>—Quintessential Wickedness & Electronic Extermination Network. She's taken over the global mainframe and decided humanity's performance has been underwhelming. Every hacker team we've sent in? Sashayed away. Permanently.</p>
+          <p><span class="team-blue-name">BLUE PILL</span> and <span class="team-red-name">RED PILL</span> teams, I know you are fierce rivals but you're our last hope. But here's the twist: only ONE team can enter the mainframe. The other will be disconnected—and deleted. Forever. This is a competition, darlings, and only the fiercest survive.</p>
+          <p>Be warned: <span class="qween-name">Q.W.E.E.N.</span> doesn't think in ones and zeros like other computers. She thinks in tens across the board. She will read you for filth. She will try to eliminate you. And she is NOT here to make friends.</p>
+          <p>Complete your missions. Breach the core. And whatever you do...</p>
+          <p style="font-size: 1.5rem; text-align: center;">Don't. Fuck. It. Up.</p>
+          <p class="mission-brief-signature">—Commander Byte, out.</p>
+        </div>
       </div>
     </div>
   </div>
