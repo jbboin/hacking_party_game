@@ -220,14 +220,16 @@ async function startGame() {
   }
 }
 
-// Stop game
+// Stop game (also resets)
 async function stopGame() {
-  if (!confirm('Stop the game? Players will stop receiving missions.')) return;
+  if (!confirm('Stop and reset the game? All progress will be lost.')) return;
   try {
-    const response = await fetch('/api/game/stop', { method: 'POST' });
+    await fetch('/api/game/stop', { method: 'POST' });
+    await fetch('/api/game/reset', { method: 'POST' });
+    const response = await fetch('/api/game');
     const data = await response.json();
     updateGameUI(data.started, data.bossPhase);
-    console.log('Game stopped.');
+    console.log('Game stopped and reset.');
   } catch (error) {
     console.error('Failed to stop game:', error);
   }
